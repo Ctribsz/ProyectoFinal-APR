@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Resultados de corridas
+results/
+runs/
+logs/
+wandb/
+*.zip
+*.db
+*.mp4
+*.gif
+
+# Sistema / editores
+.DS_Store
+.vscode/
+.idea/

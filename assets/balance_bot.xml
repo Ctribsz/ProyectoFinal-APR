@@ -1,0 +1,88 @@
+<!--
+  Robot de auto-balanceo de dos ruedas (especificación §4.1).
+
+  Convención de ejes (marco del chasis):
+    x: adelante · y: eje de las ruedas (rueda izquierda en +y) · z: arriba
+  Pitch θ = rotación alrededor de +y. θ > 0 es inclinarse hacia adelante (+x).
+  Velocidad de rueda > 0 (alrededor de +y) hace avanzar al robot hacia +x.
+  Torque > 0 en ambas ruedas: el robot acelera hacia +x y, por reacción, el chasis se inclina hacia atrás (θ disminuye).
+-->
+<mujoco model="balance_bot">
+  <compiler angle="radian" autolimits="true"/>
+
+  <!-- Paso de simulación 0.002 s (§4.1). frame_skip=5 vive en configs/env. -->
+  <option timestep="0.002" integrator="implicitfast" gravity="0 0 -9.81"/>
+
+  <visual>
+    <global offwidth="1280" offheight="720"/>
+    <headlight ambient="0.3 0.3 0.3" diffuse="0.6 0.6 0.6"/>
+  </visual>
+
+  <asset>
+    <texture name="sky" type="skybox" builtin="gradient" rgb1="0.55 0.70 0.90" rgb2="0.15 0.20 0.30" width="512" height="512"/>
+    <texture name="grid" type="2d" builtin="checker" rgb1="0.25 0.27 0.30" rgb2="0.35 0.37 0.40" width="512" height="512"/>
+    <material name="floor" texture="grid" texrepeat="40 40" reflectance="0.1"/>
+    <material name="chassis" rgba="0.15 0.45 0.80 1"/>
+    <material name="wheel" rgba="0.1 0.1 0.1 1"/>
+    <material name="marker" rgba="0.95 0.75 0.1 1"/>
+  </asset>
+
+  <default>
+    <!-- Solo las ruedas y el suelo colisionan entre sí (bit 1). El chasis usa el bit 2 para tocar el suelo si cae. -->
+    <default class="visual">
+      <geom contype="0" conaffinity="0" density="0" group="1"/>
+    </default>
+  </default>
+
+  <worldbody>
+    <light pos="0 0 3" dir="0 0 -1" directional="true"/>
+    <geom name="floor" type="plane" size="0 0 0.05" material="floor" friction="1.5 0.005 0.0001" contype="1" conaffinity="3"/>
+
+    <!-- Origen del chasis en el eje de las ruedas, a la altura del radio de rueda. -->
+    <body name="chassis" pos="0 0 0.04">
+      <freejoint name="root"/>
+      <!-- Cuerpo de 0.30 m de alto y 1.0 kg; centro de masa 0.15 m sobre el eje. -->
+      <geom name="chassis" type="box" size="0.03 0.06 0.15" pos="0 0 0.15" mass="1.0" material="chassis" contype="2" conaffinity="0"/>
+      <!-- Marca frontal (+x) para ver la orientación en el render. -->
+      <geom class="visual" type="box" size="0.005 0.04 0.01" pos="0.032 0 0.27" material="marker"/>
+
+      <site name="imu" pos="0 0 0.15" size="0.01" rgba="1 0 0 1"/>
+      <camera name="track" mode="trackcom" pos="0.9 -0.9 0.45" xyaxes="0.707 0.707 0 -0.2 0.2 0.96"/>
+
+      <!-- Separación entre ruedas 0.18 m. Radio 0.04 m, 0.05 kg por rueda. -->
+      <body name="wheel_left" pos="0 0.09 0">
+        <joint name="wheel_left" type="hinge" axis="0 1 0" damping="0.001"/>
+        <geom name="wheel_left" type="cylinder" size="0.04 0.01" zaxis="0 1 0" mass="0.05" material="wheel"
+              friction="1.5 0.005 0.0001" contype="1" conaffinity="1"/>
+        <geom class="visual" type="box" size="0.03 0.0105 0.004" material="marker"/>
+      </body>
+      <body name="wheel_right" pos="0 -0.09 0">
+        <joint name="wheel_right" type="hinge" axis="0 1 0" damping="0.001"/>
+        <geom name="wheel_right" type="cylinder" size="0.04 0.01" zaxis="0 1 0" mass="0.05" material="wheel"
+              friction="1.5 0.005 0.0001" contype="1" conaffinity="1"/>
+        <geom class="visual" type="box" size="0.03 0.0105 0.004" material="marker"/>
+      </body>
+    </body>
+  </worldbody>
+
+  <contact>
+    <exclude body1="chassis" body2="wheel_left"/>
+    <exclude body1="chassis" body2="wheel_right"/>
+  </contact>
+
+  <!-- Acción en [-1, 1] escalada a torque por gear = torque máximo 0.3 N·m (§4.2). -->
+  <actuator>
+    <motor name="motor_left" joint="wheel_left" gear="0.3" ctrlrange="-1 1"/>
+    <motor name="motor_right" joint="wheel_right" gear="0.3" ctrlrange="-1 1"/>
+  </actuator>
+
+  <!-- Sensores equivalentes a IMU + encoders (§4.3). `cutoff` = saturación del sensor; define los límites de la observación.
+       Giroscopio ±2000 °/s (34.9 rad/s, rango típico MPU6050). Encoders ±100 rad/s. -->
+  <sensor>
+    <framequat name="imu_quat" objtype="site" objname="imu"/>
+    <gyro name="imu_gyro" site="imu" cutoff="34.9"/>
+    <accelerometer name="imu_accel" site="imu"/>
+    <jointvel name="enc_left" joint="wheel_left" cutoff="100"/>
+    <jointvel name="enc_right" joint="wheel_right" cutoff="100"/>
+  </sensor>
+</mujoco>

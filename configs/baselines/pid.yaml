@@ -1,0 +1,17 @@
+# PID en cascada (especificación §5, entregable E4). Sintonizado por búsqueda en rejilla sobre el nivel 0
+# (20 semillas, θ0 ~ U(±0.05) y también U(±0.25) para medir margen). Ver docs/entregables.md, notas de E4.
+
+inner:            # pitch → acción normalizada
+  kp: 15.0        # rango estable observado: 4–20
+  ki: 0.0
+  kd: 0.4         # rango estable observado: 0.2–0.8
+
+outer:            # velocidad lineal → pitch objetivo
+  kp: 0.05        # > 0.1 pierde margen; ≥ 0.2 inestable
+  ki: 0.05
+  max_pitch_ref: 0.15   # rad
+
+yaw:              # término diferencial entre ruedas (nivel 2 en adelante)
+  kp: 0.0
+
+integral_limit: 1.0

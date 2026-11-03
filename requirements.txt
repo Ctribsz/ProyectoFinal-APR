@@ -1,0 +1,25 @@
+# Fijar versiones exactas con `pip freeze > requirements.lock` una vez que el entorno funcione.
+
+# Simulación y entorno
+mujoco>=3.1
+gymnasium>=0.29
+
+# Algoritmos y afinamiento
+# Instalar antes torch solo CPU: pip install torch --index-url https://download.pytorch.org/whl/cpu
+stable-baselines3>=2.3
+rl_zoo3>=2.3
+optuna>=3.6
+
+# Registro y análisis
+tensorboard
+rliable
+numpy
+pandas
+matplotlib
+pyyaml
+
+# Video
+imageio[ffmpeg]
+
+# Pruebas
+pytest
