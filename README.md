@@ -40,7 +40,7 @@ La especificación completa está en [`docs/especificacion-proyecto.md`](docs/es
 ## Instalación
 
 ```bash
-git clone <url-del-repositorio>
+git clone https://github.com/Ctribsz/ProyectoFinal-APR.git
 cd ProyectoFinal-APR
 python3.12 -m venv .venv          # 3.10–3.12; 3.14 aún no tiene todas las ruedas
 source .venv/bin/activate        # en Windows: .venv\Scripts\activate
@@ -103,6 +103,6 @@ Pendientes. Al cerrar la fase 4 esta sección tendrá la tabla comparativa, las 
 | Integrante | Carrera | Responsabilidades principales |
 |---|---|---|
 | Christian Echeverría | Ingeniería en Ciencias de la Computación | Modelo físico, entorno, PID, pipeline de entrenamiento y afinamiento, diagnósticos, evaluación, TD3 y SAC |
-| Mario | Ingeniería Mecatrónica | DDPG y PPO: configuración, afinamiento, corridas finales y análisis |
+| Mario Betancourt | Ingeniería Mecatrónica | DDPG y PPO: configuración, afinamiento, corridas finales y análisis |
 
 Ambos: análisis estadístico, informe y dictamen. Detalle en [`docs/entregables.md`](docs/entregables.md).
