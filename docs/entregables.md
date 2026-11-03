@@ -29,7 +29,7 @@
 | E4 | PID en cascada + `configs/baselines/pid.yaml` | Christian | F1 | E2 | 2026-11-04 | Listo |
 | E5 | `configs/algos/ddpg.yaml` y `ppo.yaml`: valores por defecto y espacio de búsqueda de Optuna | Mario | F1 (en paralelo) | — | 2026-11-04 | Pendiente |
 | E6 | `training/train.py` común (los 4 algoritmos, semilla, YAML y versiones guardados) | Christian | F2 | E2 | 2026-11-05 | Listo |
-| E7 | Prueba de humo en el nivel 0: TD3/SAC (Christian), DDPG/PPO (Mario) | Ambos | F2 | E5, E6 | 2026-11-05 | Pendiente |
+| E7 | Prueba de humo en el nivel 0: TD3/SAC (Christian), DDPG/PPO (Mario) | Ambos | F2 | E5, E6 | 2026-11-05 | TD3/SAC hechos; DDPG/PPO pendientes |
 | E8 | Niveles 1–3: perturbaciones, comandos, aleatorización | Christian | F2→F3 | E2 | 2026-11-06 | Listo |
 | E9 | `training/tune.py` + `training/callbacks.py` (diagnósticos §8) | Christian | F3 | E6 | 2026-11-06 | Pendiente |
 | E10 | Afinamiento con Optuna: TD3/SAC (Christian), DDPG/PPO (Mario) | Ambos | F3 | E8, E9 | 2026-11-08 | Pendiente |
