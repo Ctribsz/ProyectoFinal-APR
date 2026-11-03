@@ -1,0 +1,49 @@
+# Nivel 3: robusto: lo del nivel 2 con ruido, latencia y física aleatorizada (especificación §4.6).
+level: 3
+model_path: assets/balance_bot.xml   # relativo a la raíz del repositorio
+frame_skip: 5                        # 0.002 s × 5 = control a 100 Hz
+max_episode_steps: 1000              # 10 s
+termination_pitch: 0.6               # rad
+initial_pitch_range: 0.05            # rad, θ0 ~ U(-r, r)
+
+reward_weights:
+  alive: 1.0
+  theta: 1.0
+  dtheta: 0.1
+  vel: 0.5
+  yaw: 0.2
+  effort: 0.01
+  smooth: 0.05
+
+perturbations:
+  enabled: true
+  f_max: 8.0            # N [PROPUESTA]: con 15 N el robot sale a 2.4 m/s y vuelca al girar; ver docs/entregables.md (E8)
+  direction: sagittal   # sagittal (adelante/atrás) | any
+  duration: 0.1         # s
+  mean_interval: 2.0    # s, intervalo medio entre empujones (Poisson)
+
+commands:
+  enabled: true
+  min_interval: 2.0     # s
+  max_interval: 4.0     # s
+  # Rangos de comando: definen los límites de la observación y deben ser iguales en todos los niveles.
+  v_max: 0.5          # m/s
+  yaw_rate_max: 1.0   # rad/s
+
+randomization:
+  enabled: true
+  mass_range: 0.2       # masa del chasis ±20 %
+  friction_range: 0.3   # fricción rueda-suelo ±30 %
+  torque_range: 0.1     # torque máximo ±10 %
+  max_latency: 2        # pasos de latencia de observación, U{0..2} por episodio
+  noise:                # σ del ruido gaussiano por sensor
+    pitch: 0.01         # rad
+    pitch_rate: 0.05    # rad/s
+    yaw_rate: 0.05      # rad/s [PROPUESTA]
+    wheel_left: 0.1     # rad/s [PROPUESTA]
+    wheel_right: 0.1    # rad/s [PROPUESTA]
+
+render:
+  camera: track       # cámara del MJCF que sigue al robot
+  width: 640
+  height: 480

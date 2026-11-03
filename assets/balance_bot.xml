@@ -47,6 +47,8 @@
       <geom class="visual" type="box" size="0.005 0.04 0.01" pos="0.032 0 0.27" material="marker"/>
 
       <site name="imu" pos="0 0 0.15" size="0.01" rgba="1 0 0 1"/>
+      <!-- Punto donde se aplican los empujones (§4.6): parte alta del chasis, donde empujaría una mano. -->
+      <site name="push_point" pos="0 0 0.27" size="0.008" rgba="1 0.3 0.3 0.6" group="2"/>
       <camera name="track" mode="trackcom" pos="0.9 -0.9 0.45" xyaxes="0.707 0.707 0 -0.2 0.2 0.96"/>
 
       <!-- Separación entre ruedas 0.18 m. Radio 0.04 m, 0.05 kg por rueda. -->

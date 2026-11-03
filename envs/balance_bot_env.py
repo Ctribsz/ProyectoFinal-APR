@@ -16,6 +16,10 @@ import numpy as np
 import yaml
 from gymnasium import spaces
 
+from envs.commands import CommandGenerator
+from envs.perturbations import PushPerturbation
+from envs.randomization import SENSOR_KEYS, DomainRandomizer, SensorCorruptor
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_DIR = REPO_ROOT / "configs" / "env"
 
@@ -54,13 +58,15 @@ class BalanceBotEnv(gym.Env):
         config: dict[str, Any] | None = None,
         render_mode: str | None = None,
     ) -> None:
-        if level != 0:
-            raise NotImplementedError("Solo el nivel 0 está implementado en la fase 1 (ver docs/entregables.md, E8).")
+        if level not in (0, 1, 2, 3):
+            raise ValueError(f"Nivel inválido: {level}")
         if render_mode is not None and render_mode not in self.metadata["render_modes"]:
             raise ValueError(f"render_mode no soportado: {render_mode}")
 
         self.level = level
         self.config = config if config is not None else load_config(level)
+        if int(self.config["level"]) != level:
+            raise ValueError(f"La configuración es del nivel {self.config['level']}, no del {level}")
         self.render_mode = render_mode
 
         self.model = mujoco.MjModel.from_xml_path(str(REPO_ROOT / self.config["model_path"]))
@@ -89,8 +95,13 @@ class BalanceBotEnv(gym.Env):
 
         self._root_qpos = self.model.joint("root").qposadr[0]
         self._prev_action = np.zeros(2, dtype=np.float64)
-        self._command = np.zeros(2, dtype=np.float64)  # (v*, ψ̇*); en cero en el nivel 0
+        self._command = np.zeros(2, dtype=np.float64)  # (v*, ψ̇*); en cero en los niveles 0–1
         self._steps = 0
+
+        self.perturbations = PushPerturbation(self.model, self.config["perturbations"])
+        self.commands = CommandGenerator(self.config["commands"])
+        self.randomizer = DomainRandomizer(self.model, self.config["randomization"])
+        self.sensor_corruptor = SensorCorruptor(self.config["randomization"])
 
         self._renderer: mujoco.Renderer | None = None
         self._viewer = None  # mujoco.viewer.Handle en modo "human"
@@ -115,21 +126,10 @@ class BalanceBotEnv(gym.Env):
             "v": v,
         }
 
-    def _get_obs(self, s: dict[str, float]) -> np.ndarray:
-        return np.array(
-            [
-                s["pitch"],
-                s["pitch_rate"],
-                s["yaw_rate"],
-                s["wheel_left"],
-                s["wheel_right"],
-                self._command[0],
-                self._command[1],
-                self._prev_action[0],
-                self._prev_action[1],
-            ],
-            dtype=np.float32,
-        )
+    def _get_obs(self, sensors: np.ndarray) -> np.ndarray:
+        """`sensors` son las lecturas que ve el agente (con ruido y latencia en el nivel 3)."""
+        obs = np.concatenate([sensors, self._command, self._prev_action]).astype(np.float32)
+        return np.clip(obs, self.observation_space.low, self.observation_space.high)
 
     # ------------------------------------------------------------------ dinámica
 
@@ -155,6 +155,7 @@ class BalanceBotEnv(gym.Env):
     def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[np.ndarray, dict]:
         super().reset(seed=seed)
         mujoco.mj_resetData(self.model, self.data)
+        factors = self.randomizer.reset(self.np_random)
 
         theta0 = self.np_random.uniform(-self.initial_pitch_range, self.initial_pitch_range)
         q = self._root_qpos
@@ -162,30 +163,46 @@ class BalanceBotEnv(gym.Env):
         mujoco.mj_forward(self.model, self.data)
 
         self._prev_action[:] = 0.0
-        self._command[:] = 0.0
         self._steps = 0
+        self.perturbations.reset(self.np_random)
+        self.commands.reset(self.np_random)
+        self._command[:] = self.commands.command
 
         s = self._read_sensors()
+        clean = np.array([s[k] for k in SENSOR_KEYS])
+        self.sensor_corruptor.reset(self.np_random, clean)
         if self.render_mode == "human":
             self.render()
-        return self._get_obs(s), {"pitch": s["pitch"]}
+        info = {"pitch": s["pitch"], "randomization": factors, "latency": self.sensor_corruptor.latency}
+        return self._get_obs(clean), info
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         action = np.clip(np.asarray(action, dtype=np.float64), -1.0, 1.0)
         self._apply_action(action)
+        self.perturbations.update(self.data, self.np_random)
         mujoco.mj_step(self.model, self.data, nstep=self.frame_skip)
         self._steps += 1
 
+        # Recompensa y terminación con lecturas limpias; el agente ve las corrompidas (nivel 3).
         s = self._read_sensors()
         reward, components = self._reward(s, action)
         self._prev_action[:] = action
+        self._command[:] = self.commands.update(self.data.time, self.np_random)
+        sensors = self.sensor_corruptor(np.array([s[k] for k in SENSOR_KEYS]), self.np_random)
 
         terminated = abs(s["pitch"]) > self.termination_pitch
         truncated = (not terminated) and self._steps >= self.max_episode_steps
-        info = {"reward_components": components, "pitch": s["pitch"], "v": s["v"]}
+        info = {
+            "reward_components": components,
+            "pitch": s["pitch"],
+            "v": s["v"],
+            "yaw_rate": s["yaw_rate"],
+            "command": self._command.copy(),
+            "push_active": self.perturbations.active is not None,
+        }
         if self.render_mode == "human":
             self.render()
-        return self._get_obs(s), reward, terminated, truncated, info
+        return self._get_obs(sensors), reward, terminated, truncated, info
 
     def render(self) -> np.ndarray | None:
         if self.render_mode == "rgb_array":

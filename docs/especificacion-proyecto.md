@@ -176,7 +176,13 @@ r_t = w_alive
 | 2 | Seguimiento de velocidad | v* y ψ̇* cambian cada 2–4 s | Impulsos aleatorios | Ninguno |
 | 3 | Robusto | Igual que nivel 2 | Impulsos aleatorios | Ruido en sensores, latencia, masa y fricción aleatorias |
 
-**Perturbaciones [PROPUESTA]:** fuerza horizontal aplicada al cuerpo con `data.xfrc_applied` durante 0.1 s, en instantes aleatorios (en promedio una cada 2 s). La magnitud se muestrea de U(0, F_max), con F_max configurable por nivel.
+**Perturbaciones [PROPUESTA]:** fuerza horizontal aplicada al cuerpo con `data.xfrc_applied` durante 0.1 s, en instantes aleatorios (proceso de Poisson, en promedio una cada 2 s). La magnitud se muestrea de U(0, F_max), con F_max configurable por nivel.
+
+Detalles fijados en E8 (implementación en `envs/perturbations.py`):
+- **Punto de aplicación:** site `push_point`, a 0.27 m sobre el eje de las ruedas, en la parte alta del chasis. Si se aplica en el centro de masa, el robot se traslada rodando sin inclinarse y el empujón no pone a prueba el balanceo: el PID toleraba 84 N.
+- **Dirección:** `sagittal` (hacia adelante o atrás del robot) por defecto. Un empujón lateral vuelca el robot sobre el eje de las ruedas y ningún controlador puede corregirlo: el PID tolera solo 4.8 N de lado. `direction: any` queda disponible como opción.
+- **F_max = 8 N** en los niveles 1–3. Como referencia, el PID tolera 17.3 N con un solo empujón a t = 2 s. Con 15 N, los empujones repetidos llevan al robot a ~2.4 m/s y combinados con giros lo vuelcan de lado.
+- Los empujones programados (`perturbations.schedule`) sirven para la prueba de empujón de §7.4.
 
 **Aleatorización del nivel 3 [PROPUESTA]:**
 
@@ -188,6 +194,14 @@ r_t = w_alive
 | Ruido en θ̇ | σ = 0.05 rad/s |
 | Latencia de observación | 0–2 pasos |
 | Torque máximo | ±10 % |
+| Ruido en ψ̇ | σ = 0.05 rad/s [PROPUESTA] |
+| Ruido en encoders | σ = 0.1 rad/s [PROPUESTA] |
+
+Detalles fijados en E8 (`envs/randomization.py`):
+- Masa, fricción, torque y latencia se muestrean al inicio de cada episodio; el ruido, en cada paso.
+- La fricción de un contacto en MuJoCo es el máximo de las dos geometrías, así que se escala la de las ruedas y la del suelo juntas.
+- La inercia del chasis se escala junto con su masa.
+- **La recompensa y la terminación usan las lecturas limpias.** El ruido y la latencia solo afectan lo que observa el agente.
 
 Cada nivel se selecciona con un parámetro del constructor: `BalanceBotEnv(level=2)`.
 
@@ -398,6 +412,7 @@ No es obligatorio, pero el entorno se diseña para no cerrar esa puerta:
 | Fecha | Cambio | Autor |
 |---|---|---|
 | 2026-10-19 | Versión inicial del documento | Equipo |
+| 2026-11-02 | §4.6 (E8): punto y dirección de los empujones, F_max = 8 N, ruido en ψ̇ y encoders, detalles de la aleatorización; la recompensa usa lecturas limpias | Christian |
 | 2026-11-02 | Cierre de F1. §5: el PID en cascada balancea 20/20 en el nivel 0; ganancias en `configs/baselines/pid.yaml`. D2 resuelta: PID en cascada. §13: nueva decisión abierta D8 (normalización de observaciones) | Christian |
 | 2026-11-01 | §4.3: límites finitos de la observación (saturación de los sensores en el MJCF y rangos de comando en el YAML) y estimación de v con sensores (resultado de E2) | Christian |
 | 2026-11-01 | §4.1: convención de ejes, fricción rueda-suelo 1.5, amortiguamiento de rueda 0.001, integrador `implicitfast` y nota sobre el torque máximo (resultado de E1) | Christian |

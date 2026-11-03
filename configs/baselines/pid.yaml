@@ -12,6 +12,6 @@ outer:            # velocidad lineal → pitch objetivo
   max_pitch_ref: 0.15   # rad
 
 yaw:              # término diferencial entre ruedas (nivel 2 en adelante)
-  kp: 0.0
+  kp: 0.2         # sintonizado en el nivel 2 con f_max 8 N: RMSE de ψ̇ 0.60 → 0.13, sin caídas
 
 integral_limit: 1.0

@@ -1,0 +1,26 @@
+algo: td3
+
+# F2: valores por defecto de SB3 2.x, más ruido de exploración gaussiano (SB3 no trae ruido por defecto en TD3;
+# sigma 0.1 es el valor estándar del artículo original y de rl-zoo).
+hyperparams:
+  learning_rate: 1.0e-3
+  buffer_size: 1000000
+  learning_starts: 100
+  batch_size: 256
+  tau: 0.005
+  gamma: 0.99
+  train_freq: 1
+  gradient_steps: 1
+  policy_delay: 2
+  target_policy_noise: 0.2
+  target_noise_clip: 0.5
+  action_noise: {type: normal, sigma: 0.1}
+
+n_envs: 1
+
+# F3 (§6): tasa de aprendizaje, ruido de la política objetivo, retraso de actualización, ruido de exploración.
+search_space:
+  learning_rate:       {type: float, low: 1.0e-5, high: 3.0e-3, log: true}
+  target_policy_noise: {type: float, low: 0.05, high: 0.5}
+  policy_delay:        {type: int, low: 1, high: 4}
+  action_noise.sigma:  {type: float, low: 0.02, high: 0.5, log: true}

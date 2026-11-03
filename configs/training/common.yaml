@@ -1,0 +1,16 @@
+# Configuración común a los 4 algoritmos (especificación §6 y §7). Lo que vive aquí no es una variable
+# de la comparación: es igual para DDPG, TD3, SAC y PPO.
+
+policy: MlpPolicy
+net_arch: [256, 256]          # §6: arquitectura fija para todos [PROPUESTA]
+
+total_timesteps: 1000000      # §7.1 [PROPUESTA]; D4 abierta. Se sobrescribe con --timesteps
+device: cpu
+torch_threads: 1              # un hilo por proceso: escala mejor con muchas corridas en paralelo
+
+normalize: false              # D8 abierta: VecNormalize de observaciones (igual para los 4 algoritmos)
+
+eval:
+  freq: 10000                 # pasos de entorno entre evaluaciones
+  n_episodes: 10
+  seed_offset: 100000         # semilla de evaluación = semilla de entrenamiento + offset (§7.2: distintas)

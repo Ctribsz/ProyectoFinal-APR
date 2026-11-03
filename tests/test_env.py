@@ -157,7 +157,8 @@ def test_forward_lean_increases_pitch(env: BalanceBotEnv) -> None:
     assert obs[0] > 0.02 and obs[1] > 0
 
 
-def test_higher_levels_not_implemented() -> None:
-    for level in (1, 2, 3):
-        with pytest.raises(NotImplementedError):
-            BalanceBotEnv(level=level)
+def test_invalid_level_and_mismatched_config() -> None:
+    with pytest.raises(ValueError):
+        BalanceBotEnv(level=4)
+    with pytest.raises(ValueError):
+        BalanceBotEnv(level=1, config=load_config(0))
