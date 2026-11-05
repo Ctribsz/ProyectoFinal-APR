@@ -147,14 +147,16 @@ def smoke_curves() -> Path:
     fig.legend(handles, labels, loc="upper right", ncol=len(labels), frameon=False, fontsize=9, labelcolor=INK_2)
     fig.suptitle("Prueba de humo, nivel 0: valores por defecto de SB3", color=INK, fontsize=12, x=0.02, ha="left")
     fig.tight_layout(rect=(0, 0, 1, 0.93))
-    path = FIG / "prueba_humo.png"
+    # Un archivo por grupo de algoritmos (p. ej. prueba_humo_sac_td3.png): cada quien corre los suyos y no se pisan.
+    stem = "prueba_humo_" + "_".join(a.lower() for a in algos)
+    path = FIG / f"{stem}.png"
     fig.savefig(path, dpi=160, facecolor=SURFACE)
     plt.close(fig)
     lines = ["| Algoritmo | Semilla | Normalizado | Retorno final | Mejor retorno | Pasos/s |", "|---|---|---|---|---|---|"]
     for r in sorted(runs, key=lambda r: (r["algo"], r["norm"], r["seed"])):
         lines.append(f"| {r['algo']} | {r['seed']} | {'sí' if r['norm'] else 'no'} | {r['ret'][-1]:.0f} | "
                      f"{r['ret'].max():.0f} | {r['sps'] if r['sps'] else 'en curso'} |")
-    (OUT / "prueba_humo.md").write_text("\n".join(lines) + "\n")
+    (OUT / f"{stem}.md").write_text("\n".join(lines) + "\n")
     print("\n".join(lines))
     return path
 
