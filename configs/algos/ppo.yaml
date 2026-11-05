@@ -1,0 +1,27 @@
+algo: ppo
+
+# F2: valores por defecto de SB3 2.x.
+hyperparams:
+  learning_rate: 3.0e-4
+  n_steps: 2048
+  batch_size: 64
+  n_epochs: 10
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  ent_coef: 0.0
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+
+# F2: un solo entorno, como el valor por defecto de SB3 y la medición de tiempos de entregables.md.
+# Con n_envs > 1 cada rollout junta n_steps × n_envs transiciones.
+n_envs: 1
+
+# F3 (§6): tasa de aprendizaje, rango de clip, número de épocas, n_steps, λ de GAE.
+# Todas las opciones de n_steps son múltiplos de batch_size (64), como pide SB3.
+search_space:
+  learning_rate: {type: float, low: 1.0e-5, high: 1.0e-3, log: true}
+  clip_range:    {type: float, low: 0.1, high: 0.4}
+  n_epochs:      {type: int, low: 3, high: 20}
+  n_steps:       {type: categorical, choices: [512, 1024, 2048, 4096]}
+  gae_lambda:    {type: float, low: 0.8, high: 0.99}

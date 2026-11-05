@@ -1,0 +1,24 @@
+algo: ddpg
+
+# F2: valores por defecto de SB3 2.x, más ruido de exploración gaussiano (SB3 no trae ruido por defecto en DDPG;
+# sigma 0.1 es el mismo valor que en td3.yaml, para que la exploración no sea una diferencia entre ambos).
+hyperparams:
+  learning_rate: 1.0e-3
+  buffer_size: 1000000
+  learning_starts: 100
+  batch_size: 256
+  tau: 0.005
+  gamma: 0.99
+  train_freq: 1
+  gradient_steps: 1
+  action_noise: {type: normal, sigma: 0.1}
+
+n_envs: 1
+
+# F3 (§6): tasa de aprendizaje, ruido de exploración, τ, tamaño de batch.
+# Rangos iguales a los de td3.yaml y sac.yaml para los hiperparámetros compartidos.
+search_space:
+  learning_rate:      {type: float, low: 1.0e-5, high: 3.0e-3, log: true}
+  action_noise.sigma: {type: float, low: 0.02, high: 0.5, log: true}
+  tau:                {type: float, low: 0.001, high: 0.05, log: true}
+  batch_size:         {type: categorical, choices: [64, 128, 256, 512]}
