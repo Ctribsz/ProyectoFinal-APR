@@ -1,0 +1,10 @@
+# Dependencias mínimas para entrenar y afinar en otra computadora (laboratorio de la universidad).
+# Mismas versiones que el .venv de la laptop de Mario (2026-11-06): las corridas guardan sus versiones en
+# meta.json, y conviene que coincidan entre máquinas. torch (solo CPU) se instala aparte en instalar.bat.
+mujoco==3.17.0
+gymnasium==1.4.0
+stable-baselines3==2.9.2
+optuna==5.0.0
+numpy==2.5.4
+pyyaml==6.0.3
+tensorboard==2.21.0
