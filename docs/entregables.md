@@ -27,11 +27,11 @@
 | E2 | `BalanceBotEnv` nivel 0 + `configs/env/level_0.yaml` + pruebas | Christian | F1 | E1 | 2026-11-03 | Listo |
 | E3 | Render (`rgb_array`, `human`) y grabación a `.mp4` | Christian | F1 | E2 | 2026-11-03 | Listo (ver nota) |
 | E4 | PID en cascada + `configs/baselines/pid.yaml` | Christian | F1 | E2 | 2026-11-04 | Listo |
-| E5 | `configs/algos/ddpg.yaml` y `ppo.yaml`: valores por defecto y espacio de búsqueda de Optuna | Mario | F1 (en paralelo) | — | 2026-11-04 | Pendiente |
+| E5 | `configs/algos/ddpg.yaml` y `ppo.yaml`: valores por defecto y espacio de búsqueda de Optuna | Mario | F1 (en paralelo) | — | 2026-11-04 | Listo |
 | E6 | `training/train.py` común (los 4 algoritmos, semilla, YAML y versiones guardados) | Christian | F2 | E2 | 2026-11-05 | Listo |
-| E7 | Prueba de humo en el nivel 0: TD3/SAC (Christian), DDPG/PPO (Mario) | Ambos | F2 | E5, E6 | 2026-11-05 | TD3/SAC hechos; DDPG/PPO pendientes |
+| E7 | Prueba de humo en el nivel 0: TD3/SAC (Christian), DDPG/PPO (Mario) | Ambos | F2 | E5, E6 | 2026-11-05 | Listo (ver nota) |
 | E8 | Niveles 1–3: perturbaciones, comandos, aleatorización | Christian | F2→F3 | E2 | 2026-11-06 | Listo |
-| E9 | `training/tune.py` + `training/callbacks.py` (diagnósticos §8) | Christian | F3 | E6 | 2026-11-06 | Pendiente |
+| E9 | `training/tune.py` + `training/callbacks.py` (diagnósticos §8) | Mario | F3 | E6 | 2026-11-06 | Pendiente |
 | E10 | Afinamiento con Optuna: TD3/SAC (Christian), DDPG/PPO (Mario) | Ambos | F3 | E8, E9 | 2026-11-08 | Pendiente |
 | E11 | `evaluation/evaluate.py` + `evaluation/push_test.py` | Christian | F4 | E4, E8 | 2026-11-08 | Pendiente |
 | E12 | Corridas finales con semillas y E1–E6 de §7.3: cada quien sus dos algoritmos | Ambos | F4 | E10, E11 | 2026-11-10 | Pendiente |
@@ -58,6 +58,10 @@
 - **E3:** el modo `human` usa `mujoco.viewer.launch_passive`, que da segfault con GLFW en Wayland (la ventana se dibuja desde un hilo secundario). En esa configuración se usa la grabación a `.mp4` (`python -m envs.recording`) o el viewer bloqueante `python -m mujoco.viewer --mjcf=assets/balance_bot.xml`.
 
 - **E4:** ganancias elegidas por búsqueda en rejilla sobre 20 semillas del nivel 0. El lazo interno es estable en un rango amplio (kp 4–20, kd 0.2–0.8) y aguanta θ0 de ±0.25 rad. El lazo externo debe ser pequeño: con kp_v ≥ 0.2 se vuelve inestable, porque para frenar el robot primero acelera las ruedas (fase no mínima). Resultado: 20/20 episodios completos, retorno medio 999.5, deriva final de unos 1 mm. Video en `results/videos/pid_balanceo.mp4`.
+
+- **E5:** valores por defecto de SB3 2.x. DDPG usa ruido gaussiano con sigma 0.1, igual que TD3, porque SB3 no trae ruido por defecto. Los rangos de búsqueda de los hiperparámetros compartidos con TD3/SAC son los mismos. PPO queda con `n_envs: 1`; usar más entornos en paralelo es una decisión pendiente antes de F3.
+
+- **E7:** prueba de humo de DDPG/PPO en el nivel 0 con las semillas 0 y 1 (figura en `docs/img/prueba_humo_ddpg_ppo.png`). PPO llega a 1000 desde los 20k pasos en ambas semillas, con caídas puntuales de las que se recupera. DDPG aprende (mejor retorno: 854 y 715), pero se desestabiliza y termina en 243 y 70. Cumple el criterio, aunque con poco margen en la semilla 1. Los pasos/s de la laptop de Mario (i7-1065G7, 4 corridas en paralelo: DDPG ~31, PPO ~112) no sirven para D4: hay que medirlos de nuevo con la máquina libre. En Windows, `train.py` termina con código de salida 1 por la flecha `→` del resumen final (consola `cp1252`), aunque la corrida se guarde completa.
 - **E6:** `train.py` común, con `configs/training/common.yaml` y `configs/algos/{td3,sac}.yaml`. Cada corrida guarda `config.yaml`, `meta.json` (semilla, versiones, commit, máquina, duración), `evaluations.npz`, `model.zip` y TensorBoard con cada componente de la recompensa. Hay 10 pruebas que corren los 4 algoritmos.
 - **E8:** niveles 1–3 en `envs/perturbations.py`, `envs/commands.py` y `envs/randomization.py`, con 24 pruebas. Resultados del PID (20 semillas): nivel 1 sin caídas, nivel 2 sin caídas con kp_yaw = 0.2 (RMSE de ψ̇ 0.13), **nivel 3: 13/20 caídas**. Con kp = 15, el ruido de θ (0.01 rad) se traduce en ±0.15 de acción, y hay hasta 20 ms de latencia. Es el escenario donde H4 espera que el RL supere al PID.
 - **Cierre de F1 (2026-11-02):** `check_env` sin advertencias (creado con `gym.make`), PID 20/20, render correcto y 29 pruebas pasando.

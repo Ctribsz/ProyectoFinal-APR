@@ -27,7 +27,7 @@ import torch
 import yaml
 from stable_baselines3 import DDPG, PPO, SAC, TD3
 from stable_baselines3.common.base_class import BaseAlgorithm
-from stable_baselines3.common.callbacks import CallbackList, EvalCallback
+from stable_baselines3.common.callbacks import BaseCallback, CallbackList, EvalCallback
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.noise import NormalActionNoise
 from stable_baselines3.common.vec_env import VecEnv, VecNormalize
@@ -87,8 +87,14 @@ def train(
     timesteps: int | None = None,
     out_root: str | Path = REPO_ROOT / "results",
     run_name: str | None = None,
+    callback_after_eval: BaseCallback | None = None,
+    extra_callbacks: list[BaseCallback] | None = None,
 ) -> Path:
-    """Entrena una corrida y devuelve el directorio de resultados."""
+    """Entrena una corrida y devuelve el directorio de resultados.
+
+    `callback_after_eval` se llama después de cada evaluación (p. ej. la poda de `tune.py`); `extra_callbacks`
+    se agregan a los de siempre (p. ej. diagnósticos de §8).
+    """
     if algo not in ALGOS:
         raise ValueError(f"Algoritmo desconocido: {algo}")
     if algo_cfg.get("algo") != algo:
@@ -128,12 +134,14 @@ def train(
             RewardComponentsCallback(),
             EvalCallback(
                 eval_env,
+                callback_after_eval=callback_after_eval,
                 eval_freq=max(int(eval_cfg["freq"]) // n_envs, 1),
                 n_eval_episodes=int(eval_cfg["n_episodes"]),
                 deterministic=True,
                 log_path=str(run_dir),
                 verbose=0,
             ),
+            *(extra_callbacks or []),
         ]
     )
 
@@ -151,9 +159,10 @@ def train(
         "seed": seed,
         "eval_seed": seed + int(eval_cfg["seed_offset"]),
         "total_timesteps": total_timesteps,
+        "timesteps_done": model.num_timesteps,  # menos si un callback detuvo la corrida; PPO redondea a rollouts completos
         "started": started.isoformat(timespec="seconds"),
         "duration_s": round(duration, 2),
-        "steps_per_s": round(total_timesteps / duration, 1),
+        "steps_per_s": round(model.num_timesteps / duration, 1),
         "versions": library_versions(),
         "git": git_state(),
         "machine": {

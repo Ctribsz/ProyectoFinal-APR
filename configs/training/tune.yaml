@@ -1,0 +1,25 @@
+# Afinamiento con Optuna (especificación §6, entregable E9). Igual para los 4 algoritmos: el presupuesto de
+# afinamiento no es una variable de la comparación. Cada algoritmo aporta solo su `search_space`.
+
+env_config: configs/env/level_2.yaml   # §6: se afina en el nivel 2 [PROPUESTA]; relativo a la raíz del repo
+
+n_trials: 40                  # §6 [PROPUESTA]; se sobrescribe con --n-trials
+trial_timesteps: 200000       # §6 [PROPUESTA]; se sobrescribe con --trial-timesteps
+seeds: [0]                    # semillas por prueba; las mismas en todas las pruebas para compararlas entre sí
+
+# Métrica objetivo (§6: retorno medio en evaluación): media de las últimas k evaluaciones. Con k pequeño
+# premia terminar estable (el problema de DDPG en E7) sin depender de una sola evaluación ruidosa.
+objective:
+  last_k_evals: 3
+
+sampler:
+  type: tpe
+  seed: 0
+  n_startup_trials: 5         # pruebas aleatorias antes de que TPE empiece a modelar
+
+pruner:
+  type: median
+  n_startup_trials: 5         # no se poda nada hasta tener 5 pruebas completas
+  n_warmup_steps: 50000       # pasos de entorno antes de poder podar una prueba
+
+storage_dir: results/optuna   # <storage_dir>/<algo>_level<n>.db y una carpeta por estudio con las corridas
