@@ -7,8 +7,8 @@ Uso, desde una celda del notebook:
 - La máquina de Colab se borra al desconectarse. El estudio corre en el disco local de Colab (SQLite no
   funciona bien sobre Google Drive) y se copia a `<drive>/results/optuna` cada `--sync-min` minutos y al
   terminar. La carpeta de Drive tiene la misma estructura que el repo: se copia tal cual a la laptop.
-- Si la sesión se corta, se vuelve a correr la misma celda: trae el estudio de Drive, marca como FAIL las
-  pruebas que quedaron a medias, usa números de worker nuevos y lanza solo las pruebas que faltan.
+- Si la sesión se corta, se vuelve a correr la misma celda: trae el estudio de Drive y `lab.afinar` sigue
+  desde ahí (las pruebas a medias pasan a FAIL, lanza solo las que faltan y usa números de worker nuevos).
 - `afinar` reutiliza `lab.afinar` (y este, `training.tune`): no hay un pipeline aparte.
 """
 
@@ -16,8 +16,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
-import re
 import shutil
 import signal
 import sqlite3
@@ -35,9 +33,8 @@ from training.tune import TUNE_CONFIG
 from lab.afinar import study_paths
 from lab.benchmark import BENCH_STEPS
 
-DB_PATTERNS = ("*.db", "*.db-journal", "*.db-wal", "*.db-shm", "*.db.tmp")
-INTERRUPTED_ATTR = "interrumpidas"  # user_attr del estudio: pruebas que quedaron RUNNING por una sesión cortada
-FINISHED_STATES = ("COMPLETE", "PRUNED", "FAIL")
+# Lo que `sync` no copia como archivo normal: los .db van con `copy_db`; el .lock es de la máquina que corre.
+EXCLUDED_PATTERNS = ("*.db", "*.db-journal", "*.db-wal", "*.db-shm", "*.db.tmp", "*.lock")
 
 
 def copy_db(src: Path, dst: Path) -> None:
@@ -58,80 +55,26 @@ def sync(src: Path, dst: Path) -> None:
         return
     dst.mkdir(parents=True, exist_ok=True)
     if shutil.which("rsync"):
-        excludes = [f"--exclude={p}" for p in DB_PATTERNS]
+        excludes = [f"--exclude={p}" for p in EXCLUDED_PATTERNS]
         subprocess.run(["rsync", "-a", *excludes, f"{src}/", f"{dst}/"], check=True)
     else:
-        shutil.copytree(src, dst, dirs_exist_ok=True, ignore=shutil.ignore_patterns(*DB_PATTERNS))
+        shutil.copytree(src, dst, dirs_exist_ok=True, ignore=shutil.ignore_patterns(*EXCLUDED_PATTERNS))
     for db in src.glob("*.db"):
         copy_db(db, dst / db.name)
 
 
-def next_worker(log_dir: Path, algo: str) -> int:
-    """Primer número de worker sin usar, según los logs de `lab.afinar` (`<algo>_worker<i>.log`)."""
-    used = [int(m.group(1)) for p in log_dir.glob(f"{algo}_worker*.log") if (m := re.fullmatch(rf"{algo}_worker(\d+)\.log", p.name))]
-    return max(used) + 1 if used else 0
-
-
-def remaining_trials(states: list[str], interrupted: int, n_trials: int) -> int:
-    """Pruebas que faltan para llegar a `n_trials`. Las interrumpidas (FAIL puestas por `mark_interrupted`) no cuentan."""
-    finished = sum(states.count(s) for s in FINISHED_STATES) - interrupted
-    return max(0, n_trials - finished)
-
-
-def mark_interrupted(name: str, db: Path) -> tuple[list[str], int]:
-    """Pasa a FAIL las pruebas RUNNING de una sesión cortada y devuelve (estados, total de interrumpidas).
-
-    Solo se llama cuando no hay workers corriendo: si no, marcaría como FAIL pruebas vivas.
-    """
-    if not db.exists():
-        return [], 0
-    import optuna  # aquí y no arriba: el resto del módulo no lo necesita
-
-    try:
-        study = optuna.load_study(study_name=name, storage=f"sqlite:///{db.as_posix()}")
-    except KeyError:  # el .db existe pero el estudio aún no se creó
-        return [], 0
-    running = study.get_trials(deepcopy=False, states=(optuna.trial.TrialState.RUNNING,))
-    for trial in running:
-        study._storage.set_trial_state_values(trial._trial_id, state=optuna.trial.TrialState.FAIL)
-    interrupted = sorted(set(study.user_attrs.get(INTERRUPTED_ATTR, [])) | {t.number for t in running})
-    if running:
-        study.set_user_attr(INTERRUPTED_ATTR, interrupted)
-        print(f"Pruebas que quedaron a medias y se marcan como FAIL: {[t.number for t in running]}")
-    return [t.state.name for t in study.get_trials(deepcopy=False)], len(interrupted)
-
-
-def workers_alive() -> bool:
-    """True si ya hay procesos de `training.tune` corriendo en esta máquina (p. ej. una celda anterior)."""
-    if not shutil.which("pgrep"):
-        return False
-    return subprocess.run(["pgrep", "-f", "training.tune"], capture_output=True).returncode == 0
-
-
 def afinar(algo: str, workers: int, drive: Path, sync_min: float) -> None:
     tune_cfg = load_yaml(TUNE_CONFIG)
-    name, db = study_paths(algo, tune_cfg)
+    _, db = study_paths(algo, tune_cfg)
     local = db.parent
     remote = drive / local.relative_to(REPO_ROOT)
 
-    if workers_alive():
-        sys.exit("Ya hay workers de training.tune corriendo. Detén la celda anterior (o reinicia el entorno) antes de lanzar otra.")
     if not db.exists() and (remote / db.name).exists():
-        print(f"Trayendo el estudio de Drive ({remote})...")
+        print(f"Trayendo el estudio de Drive ({remote})...", flush=True)
         sync(remote, local)
 
-    states, interrupted = mark_interrupted(name, db)
-    remaining = remaining_trials(states, interrupted, int(tune_cfg["n_trials"]))
-    if remaining == 0:
-        print(f"{name}: ya tiene sus {tune_cfg['n_trials']} pruebas. Nada que correr.")
-        sync(local, remote)
-        return
-
-    workers = min(workers, remaining)
-    per_worker = math.ceil(remaining / workers)
-    first = next_worker(local / "logs", algo)
-    print(f"{name}: faltan {remaining} pruebas. Workers {first}..{first + workers - 1}. Copia a Drive cada {sync_min:g} min.", flush=True)
-    cmd = [sys.executable, "-m", "lab.afinar", "--algo", algo, "--workers", str(workers), "--trials-per-worker", str(per_worker), "--first-worker", str(first)]
+    print(f"Copia a Drive cada {sync_min:g} min.", flush=True)
+    cmd = [sys.executable, "-m", "lab.afinar", "--algo", algo, "--workers", str(workers)]
     proc = subprocess.Popen(cmd, cwd=REPO_ROOT)
     last = time.monotonic()
     try:

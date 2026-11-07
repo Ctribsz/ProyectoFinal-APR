@@ -39,9 +39,10 @@ repo en la laptop. Con eso se analiza el estudio y se elige la mejor configuraci
   físicos.
 - **No cerrar sesión ni apagar.** `afinar` evita que la PC se suspenda mientras corre, y bloquear la pantalla
   no detiene nada. Cerrar sesión, reiniciar o apagar sí lo detiene.
-- **Si se interrumpe** (por ejemplo, la PC se reinició), se vuelve a lanzar: el estudio continúa desde el
-  `.db`. Desde cmd conviene dar números de worker nuevos, para que no repitan semillas:
-  `afinar.bat ddpg 4 4` usa los workers 4 a 7.
+- **Si se interrumpe** (por ejemplo, la PC se reinició), se vuelve a lanzar igual (`afinar.bat`). El estudio
+  continúa desde el `.db`: las pruebas que quedaron a medias pasan a FAIL y no cuentan, se lanzan solo las que
+  faltan para llegar a `n_trials` y los workers usan números nuevos, para que no repitan semillas. Si dice que
+  ya hay un afinamiento corriendo y no es cierto, espera 2 minutos y vuelve a lanzarlo.
 - Algunas PC de laboratorio borran todo al reiniciar (Deep Freeze). Copia `results\optuna` a la USB
   seguido, y antes de irte.
 - Confirma con el laboratorio que se pueden dejar procesos corriendo varias horas.
