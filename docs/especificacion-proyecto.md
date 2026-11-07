@@ -300,7 +300,9 @@ Estos diagnósticos son los que permiten explicar *por qué* un algoritmo gana y
 | Suavidad de acciones | Todos | Métrica de la sección 7.4, analizada por algoritmo |
 | Componentes de la recompensa | Todos | Cada término de la sección 4.4 por separado |
 
-Se implementan como `callbacks` de SB3.
+Se implementan como `callbacks` de SB3 (`training/callbacks.py`, parámetros en `configs/training/diagnostics.yaml`). Solo los usan las corridas finales; el afinamiento no.
+
+**Cómo se mide la sobreestimación de Q (E9).** El simulador no se puede reiniciar en un estado arbitrario a partir de la observación, que es parcial. Por eso se usa el método del artículo de TD3: cada 50k pasos se juegan 3 episodios deterministas, siempre con las mismas semillas, y en cada estado visitado se compara Q(s, π(s)) del primer crítico con el retorno descontado que la política obtuvo de verdad desde ese estado en ese episodio. En los episodios cortados por tiempo se descartan los últimos 300 pasos, ~3/(1 − γ), porque su retorno real quedó incompleto. En SAC, Q incluye el bono de entropía, así que parte de su sesgo positivo es por diseño. En esos mismos episodios se mide la suavidad (§7.4). La energía de alta frecuencia es la fracción del espectro de la acción por encima de 5 Hz, sin la componente de 0 Hz.
 
 **Hipótesis a verificar** (se escriben antes de correr los experimentos y se contrastan después):
 - H1: TD3 muestra menor sobreestimación de Q que DDPG y por eso entrena de forma más estable.
@@ -412,6 +414,7 @@ No es obligatorio, pero el entorno se diseña para no cerrar esa puerta:
 | Fecha | Cambio | Autor |
 |---|---|---|
 | 2026-10-19 | Versión inicial del documento | Equipo |
+| 2026-11-06 | §8 (E9): método de la sobreestimación de Q (episodios deterministas, Q(s, π(s)) contra el retorno descontado real; se descartan los últimos 300 pasos de episodios truncados) y definición de la energía de alta frecuencia (> 5 Hz). Los diagnósticos solo corren en las corridas finales | Mario |
 | 2026-11-02 | §4.6 (E8): punto y dirección de los empujones, F_max = 8 N, ruido en ψ̇ y encoders, detalles de la aleatorización; la recompensa usa lecturas limpias | Christian |
 | 2026-11-02 | Cierre de F1. §5: el PID en cascada balancea 20/20 en el nivel 0; ganancias en `configs/baselines/pid.yaml`. D2 resuelta: PID en cascada. §13: nueva decisión abierta D8 (normalización de observaciones) | Christian |
 | 2026-11-01 | §4.3: límites finitos de la observación (saturación de los sensores en el MJCF y rangos de comando en el YAML) y estimación de v con sensores (resultado de E2) | Christian |

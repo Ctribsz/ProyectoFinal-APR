@@ -3,8 +3,8 @@
 Uso:
     python -m lab.semillas --algo ddpg --level 2 --seeds 0-3 7 [--workers 3] [--out results/final]
 
-- Cada semilla es una corrida de `train()` con `configs/algos/<algo>.yaml`, `configs/env/level_<n>.yaml` y
-  `common.yaml`, en `<out>/<algo>_level<n>_seed<s>/`. El nombre es fijo: así se juntan las corridas de varias
+- Cada semilla es una corrida de `train()` con `configs/algos/<algo>.yaml`, `configs/env/level_<n>.yaml`,
+  `common.yaml` y los diagnósticos de §8 (`diagnostics.yaml`), en `<out>/<algo>_level<n>_seed<s>/`. El nombre es fijo: así se juntan las corridas de varias
   máquinas en una sola carpeta para el análisis.
 - Se puede volver a lanzar con el mismo comando: las corridas terminadas (tienen `meta.json`, que `train()`
   escribe al final) se saltan. Una carpeta sin `meta.json` es una corrida cortada: se mueve a
@@ -27,7 +27,7 @@ from datetime import datetime
 from pathlib import Path
 
 from envs.balance_bot_env import REPO_ROOT
-from training.train import ALGOS, COMMON_CONFIG, load_yaml, train
+from training.train import ALGOS, COMMON_CONFIG, DIAGNOSTICS_CONFIG, load_yaml, train
 
 from lab.afinar import HEARTBEAT_S, keep_awake
 
@@ -99,7 +99,8 @@ def run_one(algo: str, level: int, seed: int, out: Path, timesteps: int | None) 
     try:
         env_cfg = load_yaml(REPO_ROOT / "configs" / "env" / f"level_{level}.yaml")
         algo_cfg = load_yaml(REPO_ROOT / "configs" / "algos" / f"{algo}.yaml")
-        return train(algo, env_cfg, algo_cfg, load_yaml(COMMON_CONFIG), seed=seed, timesteps=timesteps, out_root=out, run_name=name)
+        return train(algo, env_cfg, algo_cfg, load_yaml(COMMON_CONFIG), seed=seed, timesteps=timesteps, out_root=out, run_name=name,
+                     diagnostics_cfg=load_yaml(DIAGNOSTICS_CONFIG))
     finally:
         stop.set()
         lock.unlink(missing_ok=True)

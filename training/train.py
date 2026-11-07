@@ -33,10 +33,11 @@ from stable_baselines3.common.noise import NormalActionNoise
 from stable_baselines3.common.vec_env import VecEnv, VecNormalize
 
 from envs.balance_bot_env import REPO_ROOT, BalanceBotEnv
-from training.callbacks import RewardComponentsCallback
+from training.callbacks import DiagnosticsCallback, RewardComponentsCallback
 
 ALGOS: dict[str, type[BaseAlgorithm]] = {"ddpg": DDPG, "td3": TD3, "sac": SAC, "ppo": PPO}
 COMMON_CONFIG = REPO_ROOT / "configs" / "training" / "common.yaml"
+DIAGNOSTICS_CONFIG = REPO_ROOT / "configs" / "training" / "diagnostics.yaml"
 LIBRARIES = ("mujoco", "gymnasium", "stable-baselines3", "torch", "numpy", "pyyaml")
 
 
@@ -89,11 +90,13 @@ def train(
     run_name: str | None = None,
     callback_after_eval: BaseCallback | None = None,
     extra_callbacks: list[BaseCallback] | None = None,
+    diagnostics_cfg: dict[str, Any] | None = None,
 ) -> Path:
     """Entrena una corrida y devuelve el directorio de resultados.
 
     `callback_after_eval` se llama después de cada evaluación (p. ej. la poda de `tune.py`); `extra_callbacks`
-    se agregan a los de siempre (p. ej. diagnósticos de §8).
+    se agregan a los de siempre. Con `diagnostics_cfg` (configs/training/diagnostics.yaml) se registran los
+    diagnósticos de §8; el afinamiento no los usa.
     """
     if algo not in ALGOS:
         raise ValueError(f"Algoritmo desconocido: {algo}")
@@ -107,6 +110,8 @@ def train(
     run_dir.mkdir(parents=True, exist_ok=False)
 
     config = {"algo": algo_cfg, "env": env_cfg, "common": common_cfg, "seed": seed, "total_timesteps": total_timesteps}
+    if diagnostics_cfg is not None:
+        config["diagnostics"] = diagnostics_cfg
     with (run_dir / "config.yaml").open("w") as f:
         yaml.safe_dump(config, f, sort_keys=False, allow_unicode=True)
 
@@ -141,6 +146,7 @@ def train(
                 log_path=str(run_dir),
                 verbose=0,
             ),
+            *([DiagnosticsCallback(env_cfg, diagnostics_cfg, seed, log_path=run_dir)] if diagnostics_cfg is not None else []),
             *(extra_callbacks or []),
         ]
     )
@@ -189,6 +195,8 @@ def main() -> None:
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--timesteps", type=int, default=None, help="sobrescribe total_timesteps de common.yaml")
     parser.add_argument("--out", default=str(REPO_ROOT / "results"))
+    parser.add_argument("--diagnostics-config", default=str(DIAGNOSTICS_CONFIG), help="diagnósticos de §8")
+    parser.add_argument("--no-diagnostics", action="store_true", help="sin diagnósticos de §8 (más rápido)")
     args = parser.parse_args()
 
     algo_config = args.algo_config or REPO_ROOT / "configs" / "algos" / f"{args.algo}.yaml"
@@ -200,6 +208,7 @@ def main() -> None:
         seed=args.seed,
         timesteps=args.timesteps,
         out_root=args.out,
+        diagnostics_cfg=None if args.no_diagnostics else load_yaml(args.diagnostics_config),
     )
     meta = json.loads((run_dir / "meta.json").read_text())
     evals = np.load(run_dir / "evaluations.npz")

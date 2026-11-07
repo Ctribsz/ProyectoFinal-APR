@@ -1,0 +1,15 @@
+# Diagnósticos internos (especificación §8, entregable E9). Iguales para los 4 algoritmos.
+# Los usan las corridas finales (training.train y lab.semillas), no el afinamiento: training.tune no los carga,
+# así su costo no cuenta en el presupuesto de afinamiento y el protocolo de los estudios no cambia.
+
+freq: 50000                # pasos de entorno entre diagnósticos (20 por corrida de 1M)
+n_episodes: 3              # episodios deterministas por diagnóstico, siempre con las mismas semillas
+seed_offset: 200000        # semilla de esos episodios = semilla de entrenamiento + offset (distinta de entrenamiento y evaluación)
+
+q_overestimation:          # solo DDPG, TD3 y SAC (tienen crítico Q)
+  truncation_margin: 300   # en episodios cortados por tiempo se descartan los últimos pasos, cuyo retorno real queda
+                           # incompleto: ~3/(1 − γ) con γ = 0.99 (el peso de lo cortado es < e^-3 ≈ 5 %)
+
+smoothness:
+  cutoff_hz: 5.0           # energía de alta frecuencia: fracción del espectro de la acción por encima de esta frecuencia
+                           # (control a 100 Hz; el balanceo útil está por debajo de unos pocos Hz)
