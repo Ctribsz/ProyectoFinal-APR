@@ -3,7 +3,28 @@
 import sqlite3
 from contextlib import closing
 
-from lab.colab import sync
+from lab.colab import copy_completed_runs, sync
+
+
+def test_copy_completed_runs_only_copies_finished_ones(tmp_path) -> None:
+    src, dst = tmp_path / "src", tmp_path / "dst"
+    for name, done in (("ddpg_level2_seed0", True), ("ddpg_level2_seed1", False)):
+        (src / name).mkdir(parents=True)
+        (src / name / "config.yaml").write_text("x")
+        if done:
+            (src / name / "meta.json").write_text("{}")
+    (src / "_incompletas" / "viejo").mkdir(parents=True)
+    (src / "logs").mkdir()
+    (src / "logs" / "ddpg_level2_seed1.log").write_text("log")
+    (dst / "ddpg_level2_seed0").mkdir(parents=True)  # copia a medias de una sesión anterior
+
+    assert copy_completed_runs(src, dst) == ["ddpg_level2_seed0"]
+    assert (dst / "ddpg_level2_seed0" / "meta.json").exists()
+    assert not (dst / "ddpg_level2_seed1").exists()
+    assert not (dst / "_incompletas").exists()
+    assert (dst / "logs" / "ddpg_level2_seed1.log").read_text() == "log"
+    assert not list(dst.glob("*.tmp"))
+    assert copy_completed_runs(src, dst) == []  # la segunda vez no copia nada
 
 
 def test_sync_copies_files_and_db_without_deleting(tmp_path) -> None:
