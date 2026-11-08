@@ -43,7 +43,8 @@ def test_summary_counts_states_and_picks_best(tmp_path) -> None:
     assert "**3 pruebas válidas**: 2 completas, 1 podadas, 0 fallidas" in md
     assert "1 interrumpidas" in md
     assert "### Mejor prueba: #2 (objetivo 800.0)" in md
-    assert "| `action_noise.sigma` | 0.02 – 0.5 (log) | 0.1 | 0.236 |" in md  # 3 cifras significativas
+    sigma_row = next(line for line in md.splitlines() if line.startswith("| `action_noise.sigma` | 0.02 – 0.5 (log) |"))
+    assert sigma_row.split("|")[4].strip() == "0.236"  # 3 cifras significativas; la columna 3 es el YAML del repo, que cambia
     assert (tmp_path / "img" / "afinamiento_ddpg_level2.png").stat().st_size > 0
     with (tmp_path / "docs" / "ddpg_level2.csv").open(encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
