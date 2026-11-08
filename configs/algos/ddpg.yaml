@@ -1,17 +1,19 @@
 algo: ddpg
 
-# F2: valores por defecto de SB3 2.x, más ruido de exploración gaussiano (SB3 no trae ruido por defecto en DDPG;
-# sigma 0.1 es el mismo valor que en td3.yaml, para que la exploración no sea una diferencia entre ambos).
+# E10 (§6): mejor prueba del afinamiento, #39 del estudio ddpg_level2, objetivo 836.3; ver
+# docs/afinamiento/ddpg_level2.md. Se afinaron learning_rate, tau, batch_size y action_noise.sigma; el resto
+# sigue con los valores por defecto de SB3 2.x (F2). Valores de F2 de lo afinado: learning_rate 1.0e-3,
+# tau 0.005, batch_size 256, sigma 0.1 (el mismo de td3.yaml; SB3 no trae ruido por defecto en DDPG).
 hyperparams:
-  learning_rate: 1.0e-3
+  learning_rate: 8.852e-4
   buffer_size: 1000000
   learning_starts: 100
   batch_size: 256
-  tau: 0.005
+  tau: 0.01708
   gamma: 0.99
   train_freq: 1
   gradient_steps: 1
-  action_noise: {type: normal, sigma: 0.1}
+  action_noise: {type: normal, sigma: 0.2357}
 
 n_envs: 1
 
