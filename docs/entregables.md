@@ -8,7 +8,7 @@
 | Fecha | Hito |
 |---|---|
 | 2026-11-02 | Avance del proyecto (E0) |
-| ~2026-11-13 | Entrega final |
+| 2026-11-09 | Entrega final (lunes, medianoche). Antes se planeaba alrededor del 13 de noviembre |
 
 ## Reparto
 
@@ -31,11 +31,11 @@
 | E6 | `training/train.py` común (los 4 algoritmos, semilla, YAML y versiones guardados) | Christian | F2 | E2 | 2026-11-05 | Listo |
 | E7 | Prueba de humo en el nivel 0: TD3/SAC (Christian), DDPG/PPO (Mario) | Ambos | F2 | E5, E6 | 2026-11-05 | Listo (ver nota) |
 | E8 | Niveles 1–3: perturbaciones, comandos, aleatorización | Christian | F2→F3 | E2 | 2026-11-06 | Listo |
-| E9 | `training/tune.py` + `training/callbacks.py` (diagnósticos §8) | Mario | F3 | E6 | 2026-11-06 | Pendiente |
-| E10 | Afinamiento con Optuna: TD3/SAC (Christian), DDPG/PPO (Mario) | Ambos | F3 | E8, E9 | 2026-11-08 | Pendiente |
+| E9 | `training/tune.py` + `training/callbacks.py` (diagnósticos §8) | Mario | F3 | E6 | 2026-11-06 | Listo |
+| E10 | Afinamiento con Optuna: TD3/SAC (Christian), DDPG/PPO (Mario) | Ambos | F3 | E8, E9 | 2026-11-08 | DDPG y PPO listos; TD3/SAC: Christian |
 | E11 | `evaluation/evaluate.py` + `evaluation/push_test.py` | Christian | F4 | E4, E8 | 2026-11-08 | Pendiente |
-| E12 | Corridas finales con semillas y E1–E6 de §7.3: cada quien sus dos algoritmos | Ambos | F4 | E10, E11 | 2026-11-10 | Pendiente |
-| E13 | Análisis con `rliable`, hipótesis H1–H4, informe y dictamen | Ambos | F5 | E12 | 2026-11-13 | Pendiente |
+| E12 | Corridas finales con semillas y E1–E6 de §7.3: cada quien sus dos algoritmos | Ambos | F4 | E10, E11 | 2026-11-09 | En progreso (ver `reparto-e12.md`) |
+| E13 | Análisis con `rliable`, hipótesis H1–H4, informe y dictamen | Ambos | F5 | E12 | 2026-11-09 | En progreso: `analysis/finales.py` listo |
 
 ## Criterios de aceptación
 
@@ -64,11 +64,15 @@
 - **E7:** prueba de humo de DDPG/PPO en el nivel 0 con las semillas 0 y 1 (figura en `docs/img/prueba_humo_ddpg_ppo.png`). PPO llega a 1000 desde los 20k pasos en ambas semillas, con caídas puntuales de las que se recupera. DDPG aprende (mejor retorno: 854 y 715), pero se desestabiliza y termina en 243 y 70. Cumple el criterio, aunque con poco margen en la semilla 1. Los pasos/s de la laptop de Mario (i7-1065G7, 4 corridas en paralelo: DDPG ~31, PPO ~112) no sirven para D4; se midieron de nuevo con la máquina libre el 2026-11-06 (ver «Riesgo de cómputo»). En Windows, `train.py` termina con código de salida 1 por la flecha `→` del resumen final (consola `cp1252`), aunque la corrida se guarde completa.
 - **E6:** `train.py` común, con `configs/training/common.yaml` y `configs/algos/{td3,sac}.yaml`. Cada corrida guarda `config.yaml`, `meta.json` (semilla, versiones, commit, máquina, duración), `evaluations.npz`, `model.zip` y TensorBoard con cada componente de la recompensa. Hay 10 pruebas que corren los 4 algoritmos.
 - **E8:** niveles 1–3 en `envs/perturbations.py`, `envs/commands.py` y `envs/randomization.py`, con 24 pruebas. Resultados del PID (20 semillas): nivel 1 sin caídas, nivel 2 sin caídas con kp_yaw = 0.2 (RMSE de ψ̇ 0.13), **nivel 3: 13/20 caídas**. Con kp = 15, el ruido de θ (0.01 rad) se traduce en ±0.15 de acción, y hay hasta 20 ms de latencia. Es el escenario donde H4 espera que el RL supere al PID.
+- **E9 (2026-11-06, Mario):** `training/tune.py` (Optuna con TPE y podador por mediana; el estudio en `results/optuna/<algo>_level<n>.db`; varios procesos con `lab/afinar.py`, que se reanuda solo) y `training/callbacks.py` con `DiagnosticsCallback`: sobreestimación de Q (método del artículo de TD3, ver §8) y suavidad de la acción, parametrizados en `configs/training/diagnostics.yaml`. Solo los usan las corridas finales. α de SAC y KL/clip de PPO los registra SB3 en TensorBoard; hay pruebas que lo verifican. `train()` anota el estado de git al inicio de la corrida.
+- **E10, DDPG y PPO (2026-11-07, Mario):** 40 pruebas × 200k pasos en el nivel 2 cada uno, en la laptop con 4 procesos. DDPG: 7.6 h, mejor prueba #39 (objetivo 836.3: lr 8.852e-4, σ 0.2357, τ 0.01708, batch 256). PPO: 2.6 h, mejor prueba #34 (objetivo 865.9: lr 1.607e-4, clip 0.1628, n_epochs 16, n_steps 2048, λ 0.9498). Detalle y figuras en `docs/afinamiento/` (`python -m analysis.resumen_afinamiento`). Limitación: una semilla por prueba.
 - **Cierre de F1 (2026-11-02):** `check_env` sin advertencias (creado con `gym.make`), PID 20/20, render correcto y 29 pruebas pasando.
 
 ## Riesgo de cómputo
 
 Con fecha final cercana al 13 de noviembre, los presupuestos propuestos en la especificación (40 pruebas × 200k pasos por algoritmo en §6, y 10 semillas × 1M pasos en §7.1) pueden no caber. La decisión D4 sigue abierta: se fija con los tiempos medidos en E7, antes de lanzar E10.
+
+**Estado al 2026-11-08:** E10 se corrió con el presupuesto de §6 (40 × 200k) para DDPG y PPO. E12 se reparte entre la laptop de Mario, Colab y otras PC (`docs/reparto-e12.md`). Propuesta para D4, pendiente de confirmar con Christian: 10 semillas en el nivel 2 y 5 en el nivel 3 (E5), iguales para los 4 algoritmos.
 
 ### Mediciones del 2026-11-01 (nivel 0, MLP [256, 256], CPU, 1 hilo de torch por proceso)
 

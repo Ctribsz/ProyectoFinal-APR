@@ -19,21 +19,29 @@ Estados: *pendiente*, *corriendo*, *terminada*, *copiada* (ya está en `results/
 
 | Algoritmo | Semillas | Máquina | Responsable | Commit | Inicio | Estado |
 |---|---|---|---|---|---|---|
-| DDPG | 0–3 | Laptop de Mario (LAPTOP-V9KBFJLE), 4 a la vez | Mario | | | pendiente |
-| DDPG | 4–5 | Colab de Mario | Mario | | | pendiente |
-| DDPG | 6–9 | Otras PC (por definir) | Mario | | | pendiente |
-| PPO | 0–9 | Laptop de Mario (pendiente de afinar) | Mario | | | pendiente |
+| DDPG | 0–3 | Laptop de Mario (LAPTOP-V9KBFJLE), 4 a la vez | Mario | 6077539 | 2026-11-07 22:52 | terminada (~8.5 h c/u) |
+| DDPG | 4–6 | Colab de Mario | Mario | | 2026-11-08 | corriendo (el primer intento se desconectó) |
+| DDPG | 7–9 | Laptop de Mario, 3 a la vez | Mario | 6077539 | 2026-11-08 10:37 | corriendo |
+| PPO | 0–4 | Laptop de Mario, 4 a la vez | Mario | 6077539 | 2026-11-07 22:41 | terminada (3.4 h c/u; la 4, 1.9 h) |
+| PPO | 5–9 | Laptop de Mario, 1 a la vez | Mario | 6077539 | 2026-11-08 12:17 | corriendo |
 | TD3 | 0–9 | | Christian | | | pendiente |
 | SAC | 0–9 | | Christian | | | pendiente |
+
+Las corridas de DDPG 0–3, 7–9 y PPO 4–9 anotan `dirty: true` solo porque había un documento sin commit
+(`docs/resumen-sesion-2026-11-07.md`); el código de entrenamiento es el del commit `6077539`. PPO 0–3 y DDPG 0–3
+corrieron a la vez (8 procesos en 4 núcleos), así que sus horas de reloj no sirven para E2.
 
 ## Bloque 2: entrenamiento en el nivel 3 (experimento E5, §7.3)
 
 | Algoritmo | Semillas | Máquina | Responsable | Commit | Inicio | Estado |
 |---|---|---|---|---|---|---|
-| DDPG | 0–9 | | Mario | | | pendiente |
-| PPO | 0–9 | | Mario | | | pendiente |
-| TD3 | 0–9 | | Christian | | | pendiente |
-| SAC | 0–9 | | Christian | | | pendiente |
+| DDPG | 0–3 | Laptop de Mario (cuando terminen DDPG 7–9, ~18:00) | Mario | | | pendiente |
+| DDPG | 4 | Colab de Mario (después de DDPG 4–6 del nivel 2) | Mario | | | pendiente |
+| PPO | 0–4 | Laptop de Mario | Mario | | | pendiente |
+| TD3 | 0–4 | | Christian | | | pendiente |
+| SAC | 0–4 | | Christian | | | pendiente |
+
+Propuesta: 5 semillas en este bloque (el mínimo de §7.1) por tiempo; pendiente de confirmar con Christian (D4).
 
 ## Comandos
 
