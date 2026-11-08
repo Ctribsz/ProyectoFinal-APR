@@ -104,6 +104,8 @@ def train(
         raise ValueError(f"La configuración es de '{algo_cfg.get('algo')}', no de '{algo}'")
     total_timesteps = int(timesteps if timesteps is not None else common_cfg["total_timesteps"])
     torch.set_num_threads(int(common_cfg["torch_threads"]))
+    # Estado de git al empezar: es el código que se cargó. Leerlo al final anotaría commits hechos durante la corrida.
+    git_at_start = git_state()
 
     run_name = run_name or f"{algo}_level{env_cfg['level']}_seed{seed}_{datetime.now():%Y%m%d-%H%M%S}"
     run_dir = Path(out_root) / run_name
@@ -170,7 +172,7 @@ def train(
         "duration_s": round(duration, 2),
         "steps_per_s": round(model.num_timesteps / duration, 1),
         "versions": library_versions(),
-        "git": git_state(),
+        "git": git_at_start,
         "machine": {
             "hostname": socket.gethostname(),
             "platform": platform.platform(),

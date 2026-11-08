@@ -90,3 +90,11 @@ def test_repo_algo_configs_are_valid() -> None:
         for name, spec in cfg.get("search_space", {}).items():
             assert spec["type"] in ("float", "int", "categorical"), name
         build_hyperparams(cfg, 2)
+
+
+def test_meta_records_git_state_at_start(common: dict, tmp_path, monkeypatch) -> None:
+    # Si se hace un commit mientras la corrida entrena, meta.json debe anotar el commit con el que empezó.
+    states = iter([{"commit": "inicio", "dirty": False}, {"commit": "fin", "dirty": True}])
+    monkeypatch.setattr("training.train.git_state", lambda: next(states))
+    run = train("ppo", load_config(0), TEST_ALGO_CONFIGS["ppo"], common, seed=0, timesteps=128, out_root=tmp_path)
+    assert json.loads((run / "meta.json").read_text())["git"] == {"commit": "inicio", "dirty": False}
