@@ -1,0 +1,29 @@
+{
+  "algo": "sac",
+  "seed": 0,
+  "eval_seed": 100000,
+  "total_timesteps": 1000000,
+  "timesteps_done": 1000000,
+  "started": "2026-11-09T05:20:17",
+  "duration_s": 24874.87,
+  "steps_per_s": 40.2,
+  "versions": {
+    "python": "3.12.13",
+    "mujoco": "3.17.0",
+    "gymnasium": "1.4.0",
+    "stable-baselines3": "2.9.2",
+    "torch": "2.15.0+cpu",
+    "numpy": "2.5.4",
+    "pyyaml": "6.0.3"
+  },
+  "git": {
+    "commit": "9576d093ae36ea0a476a217855b478894049a450",
+    "dirty": true
+  },
+  "machine": {
+    "hostname": "WH-Chris",
+    "platform": "Linux-7.1.5-1-cachyos-x86_64-with-glibc2.44",
+    "processor": "",
+    "torch_threads": 1
+  }
+}
