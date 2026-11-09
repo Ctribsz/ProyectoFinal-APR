@@ -1,0 +1,26 @@
+# Evaluación final (especificación §7.2–§7.4, entregable E11). Igual para los 4 algoritmos y el PID.
+
+# §7.2: política determinista, semillas fijas y distintas a las de entrenamiento (0–9), evaluación durante el
+# entrenamiento (+100000) y diagnósticos (+200000). Episodio k de cada nivel: semilla seed_offset + k, la misma
+# para todas las políticas (comparación pareada).
+levels: [0, 1, 2, 3]
+n_episodes: 50              # §7.2: 50 episodios por nivel por semilla
+seed_offset: 300000
+
+# Prueba de empujón (E4, §7.4). Se hace en el nivel 0 (sin empujones aleatorios ni comandos), así el único
+# disturbio es el empujón de la prueba. Punto, duración y dirección sagital salen de configs/env/level_0.yaml.
+push_test:
+  level: 0
+  push_time: 2.0            # s, §7.4: impulso a t = 2 s
+  post_push_s: 3.0          # s que se simulan después del empujón para decidir si cayó
+  angles: [0.0, 3.141592653589793]   # adelante y atrás (rad, relativo al frente del robot)
+  n_seeds: 5                # estados iniciales distintos (semillas seed_offset + k)
+  seed_offset: 400000
+  max_force:
+    low: 0.0                # N: se supone que no cae
+    high: 40.0              # N: se comprueba que sí cae; si no cae, se reporta este valor como cota
+    tolerance: 0.25         # N: la bisección para cuando high − low < tolerance
+  recovery:
+    forces: [4.0, 8.0]      # N: fuerzas fijas para medir el tiempo de recuperación (8 = f_max del nivel 1)
+    threshold: 0.035        # rad (~2°)
+    hold_s: 0.5             # |θ| < threshold de forma sostenida durante este tiempo
