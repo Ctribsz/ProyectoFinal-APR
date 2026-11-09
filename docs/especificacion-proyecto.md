@@ -401,11 +401,11 @@ No es obligatorio, pero el entorno se diseña para no cerrar esa puerta:
 | D1 | Control del motor | Torque ideal / modelo de motor DC | El modelo DC ayuda si se quiere robot real |
 | D2 | Línea base | **Resuelta (2026-11-02): PID en cascada** | Balancea 20/20 en el nivel 0; el LQR no hizo falta |
 | D3 | Dimensiones del robot | Valores propuestos / medidos de un robot real | Depende de si se construye hardware |
-| D4 | Presupuesto de pasos | 1M por corrida / ajustar según tiempos medidos en F2 | Medir cuánto tarda una corrida antes de fijarlo |
+| D4 | Presupuesto de pasos | **Resuelta (2026-11-09):** 1M de pasos por corrida; 10 semillas en el nivel 2 y 5 en el nivel 3 (E5), iguales para los 4 algoritmos; afinamiento de 40 pruebas × 200k pasos en el nivel 2 para los 4 | PPO tiene 10 semillas en el nivel 3, pero la comparación usa las semillas 0–4 |
 | D5 | Plataforma de registro | TensorBoard / W&B | W&B facilita comparar entre los dos integrantes |
 | D6 | Formato de entrega | Por confirmar con el catedrático | |
-| D8 | Normalización de observaciones (`VecNormalize`) | Sin normalizar / normalizar en los 4 algoritmos | Las escalas difieren mucho (θ ~ 0.1 rad, ruedas hasta 100 rad/s). Se prueba en F2 con y sin normalizar; la opción elegida aplica igual a los 4 |
-| D7 | Fecha de entrega | **Resuelta:** avance el 2026-11-02, entrega final alrededor del 2026-11-13 | Cronograma en `docs/entregables.md` |
+| D8 | Normalización de observaciones (`VecNormalize`) | **Resuelta (2026-11-09): sin normalizar**, igual para los 4 | La prueba de F2 con una semilla no fue concluyente y no hubo tiempo de repetirla; se declara como limitación en el informe |
+| D7 | Fecha de entrega | **Resuelta:** avance el 2026-11-02; entrega final el 2026-11-09 (se adelantó desde el ~13) | Cronograma en `docs/entregables.md` |
 
 ---
 
@@ -414,6 +414,7 @@ No es obligatorio, pero el entorno se diseña para no cerrar esa puerta:
 | Fecha | Cambio | Autor |
 |---|---|---|
 | 2026-10-19 | Versión inicial del documento | Equipo |
+| 2026-11-09 | §13: D4 resuelta (1M de pasos; 10 semillas en el nivel 2 y 5 en el nivel 3; afinamiento 40 × 200k para los 4), D8 resuelta (sin normalizar) y D7 actualizada (entrega el 2026-11-09). §7.2–§7.4 (E11): semillas de evaluación final = 300000 + k y de la prueba de empujón = 400000 + k; la prueba de empujón se hace en el nivel 0, adelante y atrás, con 6 s de simulación tras el empujón (el PID tarda ~3 s en recuperarse) y tiempo de recuperación medido a 4 y 8 N; parámetros en `configs/evaluation/evaluation.yaml`. Excepción a AGENTS.md: `results/final` (corridas de E12) y `results/evaluation` se versionan con `git add -f` para compartirlos | Christian |
 | 2026-11-06 | §8 (E9): método de la sobreestimación de Q (episodios deterministas, Q(s, π(s)) contra el retorno descontado real; se descartan los últimos 300 pasos de episodios truncados) y definición de la energía de alta frecuencia (> 5 Hz). Los diagnósticos solo corren en las corridas finales | Mario |
 | 2026-11-02 | §4.6 (E8): punto y dirección de los empujones, F_max = 8 N, ruido en ψ̇ y encoders, detalles de la aleatorización; la recompensa usa lecturas limpias | Christian |
 | 2026-11-02 | Cierre de F1. §5: el PID en cascada balancea 20/20 en el nivel 0; ganancias en `configs/baselines/pid.yaml`. D2 resuelta: PID en cascada. §13: nueva decisión abierta D8 (normalización de observaciones) | Christian |

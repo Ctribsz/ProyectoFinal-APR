@@ -22,7 +22,7 @@
 
 | # | Entregable | Responsable | Fase | Depende de | Fecha objetivo | Estado |
 |---|---|---|---|---|---|---|
-| E0 | Avance del 2 de noviembre | Ambos | — | — | 2026-11-02 | En progreso |
+| E0 | Avance del 2 de noviembre | Ambos | — | — | 2026-11-02 | Listo |
 | E1 | Modelo MJCF (`assets/balance_bot.xml`) | Christian | F1 | — | 2026-11-02 | Listo |
 | E2 | `BalanceBotEnv` nivel 0 + `configs/env/level_0.yaml` + pruebas | Christian | F1 | E1 | 2026-11-03 | Listo |
 | E3 | Render (`rgb_array`, `human`) y grabación a `.mp4` | Christian | F1 | E2 | 2026-11-03 | Listo (ver nota) |
@@ -32,10 +32,10 @@
 | E7 | Prueba de humo en el nivel 0: TD3/SAC (Christian), DDPG/PPO (Mario) | Ambos | F2 | E5, E6 | 2026-11-05 | Listo (ver nota) |
 | E8 | Niveles 1–3: perturbaciones, comandos, aleatorización | Christian | F2→F3 | E2 | 2026-11-06 | Listo |
 | E9 | `training/tune.py` + `training/callbacks.py` (diagnósticos §8) | Mario | F3 | E6 | 2026-11-06 | Listo |
-| E10 | Afinamiento con Optuna: TD3/SAC (Christian), DDPG/PPO (Mario) | Ambos | F3 | E8, E9 | 2026-11-08 | DDPG y PPO listos; TD3/SAC: Christian |
-| E11 | `evaluation/evaluate.py` + `evaluation/push_test.py` | Christian | F4 | E4, E8 | 2026-11-08 | Pendiente |
-| E12 | Corridas finales con semillas y E1–E6 de §7.3: cada quien sus dos algoritmos | Ambos | F4 | E10, E11 | 2026-11-09 | En progreso (ver `reparto-e12.md`) |
-| E13 | Análisis con `rliable`, hipótesis H1–H4, informe y dictamen | Ambos | F5 | E12 | 2026-11-09 | En progreso: `analysis/finales.py` listo |
+| E10 | Afinamiento con Optuna: TD3/SAC (Christian), DDPG/PPO (Mario) | Ambos | F3 | E8, E9 | 2026-11-08 | Listo |
+| E11 | `evaluation/evaluate.py` + `evaluation/push_test.py` | Christian | F4 | E4, E8 | 2026-11-08 | Listo |
+| E12 | Corridas finales con semillas y E1–E6 de §7.3: cada quien sus dos algoritmos | Ambos | F4 | E10, E11 | 2026-11-09 | Listo (ver `reparto-e12.md`) |
+| E13 | Análisis con `rliable`, hipótesis H1–H4, informe y dictamen | Ambos | F5 | E12 | 2026-11-09 | Listo: `docs/finales/` e informe en `docs/latex/informe.tex`; falta la revisión de Mario |
 
 ## Criterios de aceptación
 
@@ -66,6 +66,10 @@
 - **E8:** niveles 1–3 en `envs/perturbations.py`, `envs/commands.py` y `envs/randomization.py`, con 24 pruebas. Resultados del PID (20 semillas): nivel 1 sin caídas, nivel 2 sin caídas con kp_yaw = 0.2 (RMSE de ψ̇ 0.13), **nivel 3: 13/20 caídas**. Con kp = 15, el ruido de θ (0.01 rad) se traduce en ±0.15 de acción, y hay hasta 20 ms de latencia. Es el escenario donde H4 espera que el RL supere al PID.
 - **E9 (2026-11-06, Mario):** `training/tune.py` (Optuna con TPE y podador por mediana; el estudio en `results/optuna/<algo>_level<n>.db`; varios procesos con `lab/afinar.py`, que se reanuda solo) y `training/callbacks.py` con `DiagnosticsCallback`: sobreestimación de Q (método del artículo de TD3, ver §8) y suavidad de la acción, parametrizados en `configs/training/diagnostics.yaml`. Solo los usan las corridas finales. α de SAC y KL/clip de PPO los registra SB3 en TensorBoard; hay pruebas que lo verifican. `train()` anota el estado de git al inicio de la corrida.
 - **E10, DDPG y PPO (2026-11-07, Mario):** 40 pruebas × 200k pasos en el nivel 2 cada uno, en la laptop con 4 procesos. DDPG: 7.6 h, mejor prueba #39 (objetivo 836.3: lr 8.852e-4, σ 0.2357, τ 0.01708, batch 256). PPO: 2.6 h, mejor prueba #34 (objetivo 865.9: lr 1.607e-4, clip 0.1628, n_epochs 16, n_steps 2048, λ 0.9498). Detalle y figuras en `docs/afinamiento/` (`python -m analysis.resumen_afinamiento`). Limitación: una semilla por prueba.
+- **E10, TD3 y SAC (2026-11-09, Christian):** mismo protocolo (40 × 200k en el nivel 2), en la máquina de Christian con 8 procesos por algoritmo a la vez. TD3: 3.0 h, 22 completas y 18 podadas, mejor prueba #13 (objetivo 896.9: lr 1.954e-3, ruido de la política objetivo 0.4482, policy_delay 4, σ 0.4783). SAC: 4.0 h, 17 completas y 23 podadas, mejor prueba #0 (objetivo 878.1: lr 2.288e-4, ent_coef auto, τ 0.005539, batch 128). Detalle en `docs/afinamiento/`.
+- **E11 (2026-11-09, Christian):** `evaluation/evaluate.py` (niveles 0–3, 50 episodios deterministas por nivel, métricas de §7.4; E3, E5, E6) y `evaluation/push_test.py` (bisección de la fuerza máxima a t = 2 s y tiempo de recuperación a 4 y 8 N; E4), con el mismo código para el PID y los agentes de SB3. Parámetros en `configs/evaluation/evaluation.yaml`; 8 pruebas en `tests/test_evaluation.py`. Resúmenes con IQM e IC 95 % en `docs/finales/evaluacion.md` y `empujon.md`.
+- **E12 (2026-11-09):** 60 corridas en la comparación: los 4 algoritmos con las semillas 0–9 en el nivel 2 y 0–4 en el nivel 3 (D4). TD3 y SAC corrieron en la máquina de Christian, 30 procesos a la vez, ~6.5 h cada corrida. Las corridas están versionadas en `results/final/` con `git add -f`. Para el análisis se usa `results/analisis/` (enlaces a las 60 corridas de la comparación, sin PPO 5–9 del nivel 3).
+- **E13 (2026-11-09):** `python -m analysis.finales --runs-dir results/analisis` y el informe `docs/latex/informe.tex`. H1 se confirma, H2 se rechaza, H3 se confirma solo en parte y H4 se confirma con matices.
 - **Cierre de F1 (2026-11-02):** `check_env` sin advertencias (creado con `gym.make`), PID 20/20, render correcto y 29 pruebas pasando.
 
 ## Riesgo de cómputo
@@ -73,6 +77,8 @@
 Con fecha final cercana al 13 de noviembre, los presupuestos propuestos en la especificación (40 pruebas × 200k pasos por algoritmo en §6, y 10 semillas × 1M pasos en §7.1) pueden no caber. La decisión D4 sigue abierta: se fija con los tiempos medidos en E7, antes de lanzar E10.
 
 **Estado al 2026-11-08:** E10 se corrió con el presupuesto de §6 (40 × 200k) para DDPG y PPO. E12 se reparte entre la laptop de Mario, Colab y otras PC (`docs/reparto-e12.md`). Propuesta para D4, pendiente de confirmar con Christian: 10 semillas en el nivel 2 y 5 en el nivel 3 (E5), iguales para los 4 algoritmos.
+
+**Cierre (2026-11-09):** D4 confirmada con esa propuesta. TD3 y SAC también se afinaron con 40 × 200k. Todo terminó a las 12:15 del 2026-11-09.
 
 ### Mediciones del 2026-11-01 (nivel 0, MLP [256, 256], CPU, 1 hilo de torch por proceso)
 
