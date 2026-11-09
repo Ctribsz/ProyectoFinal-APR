@@ -12,7 +12,7 @@ seed_offset: 300000
 push_test:
   level: 0
   push_time: 2.0            # s, §7.4: impulso a t = 2 s
-  post_push_s: 3.0          # s que se simulan después del empujón para decidir si cayó
+  post_push_s: 6.0          # s que se simulan después del empujón: el PID tarda ~2.5–3.5 s en recuperarse (frena inclinándose)
   angles: [0.0, 3.141592653589793]   # adelante y atrás (rad, relativo al frente del robot)
   n_seeds: 5                # estados iniciales distintos (semillas seed_offset + k)
   seed_offset: 400000
