@@ -1,0 +1,29 @@
+{
+  "algo": "ddpg",
+  "seed": 1,
+  "eval_seed": 100001,
+  "total_timesteps": 1000000,
+  "timesteps_done": 1000000,
+  "started": "2026-11-09T00:26:37",
+  "duration_s": 28300.36,
+  "steps_per_s": 35.3,
+  "versions": {
+    "python": "3.12.10",
+    "mujoco": "3.17.0",
+    "gymnasium": "1.4.0",
+    "stable-baselines3": "2.9.2",
+    "torch": "2.15.0+cpu",
+    "numpy": "2.5.4",
+    "pyyaml": "6.0.3"
+  },
+  "git": {
+    "commit": "9576d093ae36ea0a476a217855b478894049a450",
+    "dirty": false
+  },
+  "machine": {
+    "hostname": "LAPTOP-V9KBFJLE",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 126 Stepping 5, GenuineIntel",
+    "torch_threads": 1
+  }
+}

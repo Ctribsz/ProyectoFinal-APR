@@ -1,0 +1,29 @@
+{
+  "algo": "ddpg",
+  "seed": 4,
+  "eval_seed": 100004,
+  "total_timesteps": 1000000,
+  "timesteps_done": 1000000,
+  "started": "2026-11-08T03:01:33",
+  "duration_s": 21908.26,
+  "steps_per_s": 45.6,
+  "versions": {
+    "python": "3.13.18",
+    "mujoco": "3.17.0",
+    "gymnasium": "1.4.0",
+    "stable-baselines3": "2.9.2",
+    "torch": "2.15.0+cpu",
+    "numpy": "2.5.4",
+    "pyyaml": "6.0.3"
+  },
+  "git": {
+    "commit": "35c992e35adc3ee1f97ad2f1b519e837c974272a",
+    "dirty": false
+  },
+  "machine": {
+    "hostname": "c458bac285f5",
+    "platform": "Linux-6.6.159+-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "torch_threads": 1
+  }
+}

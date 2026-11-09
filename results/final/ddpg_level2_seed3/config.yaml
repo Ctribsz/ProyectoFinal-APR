@@ -1,0 +1,94 @@
+algo:
+  algo: ddpg
+  hyperparams:
+    learning_rate: 0.0008852
+    buffer_size: 1000000
+    learning_starts: 100
+    batch_size: 256
+    tau: 0.01708
+    gamma: 0.99
+    train_freq: 1
+    gradient_steps: 1
+    action_noise:
+      type: normal
+      sigma: 0.2357
+  n_envs: 1
+  search_space:
+    learning_rate:
+      type: float
+      low: 1.0e-05
+      high: 0.003
+      log: true
+    action_noise.sigma:
+      type: float
+      low: 0.02
+      high: 0.5
+      log: true
+    tau:
+      type: float
+      low: 0.001
+      high: 0.05
+      log: true
+    batch_size:
+      type: categorical
+      choices:
+      - 64
+      - 128
+      - 256
+      - 512
+env:
+  level: 2
+  model_path: assets/balance_bot.xml
+  frame_skip: 5
+  max_episode_steps: 1000
+  termination_pitch: 0.6
+  initial_pitch_range: 0.05
+  reward_weights:
+    alive: 1.0
+    theta: 1.0
+    dtheta: 0.1
+    vel: 0.5
+    yaw: 0.2
+    effort: 0.01
+    smooth: 0.05
+  perturbations:
+    enabled: true
+    f_max: 8.0
+    direction: sagittal
+    duration: 0.1
+    mean_interval: 2.0
+  commands:
+    enabled: true
+    min_interval: 2.0
+    max_interval: 4.0
+    v_max: 0.5
+    yaw_rate_max: 1.0
+  randomization:
+    enabled: false
+  render:
+    camera: track
+    width: 640
+    height: 480
+common:
+  policy: MlpPolicy
+  net_arch:
+  - 256
+  - 256
+  total_timesteps: 1000000
+  device: cpu
+  torch_threads: 1
+  normalize: false
+  eval:
+    freq: 10000
+    n_episodes: 10
+    seed_offset: 100000
+seed: 3
+total_timesteps: 1000000
+diagnostics:
+  freq: 50000
+  n_episodes: 3
+  seed_offset: 200000
+  q_overestimation:
+    truncation_margin: 300
+  smoothness:
+    cutoff_hz: 5.0
