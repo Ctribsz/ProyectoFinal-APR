@@ -1,9 +1,13 @@
 algo: td3
 
+# E10 (§6): mejor prueba del afinamiento, #13 del estudio td3_level2, objetivo 896.9
+# (22 completas, 18 podadas; 40 × 200k en el nivel 2, mismo protocolo que DDPG y PPO).
+# Afinado: learning_rate 1.9537e-03, target_policy_noise 0.4482, policy_delay 4, action_noise.sigma 0.4783. El resto, valores de F2.
+# Valores de F2 antes del afinamiento:
 # F2: valores por defecto de SB3 2.x, más ruido de exploración gaussiano (SB3 no trae ruido por defecto en TD3;
 # sigma 0.1 es el valor estándar del artículo original y de rl-zoo).
 hyperparams:
-  learning_rate: 1.0e-3
+  learning_rate: 1.9537e-03
   buffer_size: 1000000
   learning_starts: 100
   batch_size: 256
@@ -11,10 +15,10 @@ hyperparams:
   gamma: 0.99
   train_freq: 1
   gradient_steps: 1
-  policy_delay: 2
-  target_policy_noise: 0.2
+  policy_delay: 4
+  target_policy_noise: 0.4482
   target_noise_clip: 0.5
-  action_noise: {type: normal, sigma: 0.1}
+  action_noise: {type: normal, sigma: 0.4783}
 
 n_envs: 1
 

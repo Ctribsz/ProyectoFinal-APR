@@ -1,12 +1,16 @@
 algo: sac
 
+# E10 (§6): mejor prueba del afinamiento, #0 del estudio sac_level2, objetivo 878.1
+# (17 completas, 23 podadas; 40 × 200k en el nivel 2, mismo protocolo que DDPG y PPO).
+# Afinado: learning_rate 2.2881e-04, ent_coef auto, tau 5.5392e-03, batch_size 128. El resto, valores de F2.
+# Valores de F2 antes del afinamiento:
 # F2: valores por defecto de SB3 2.x.
 hyperparams:
-  learning_rate: 3.0e-4
+  learning_rate: 2.2881e-04
   buffer_size: 1000000
   learning_starts: 100
-  batch_size: 256
-  tau: 0.005
+  batch_size: 128
+  tau: 5.5392e-03
   gamma: 0.99
   train_freq: 1
   gradient_steps: 1
