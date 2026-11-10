@@ -23,6 +23,7 @@
 \newcommand{\code}[1]{\texttt{#1}}
 \newcommand{\SI}[2]{#1\,#2}  % cantidad con unidad (sin depender de siunitx)
 \newcommand{\best}[1]{\textbf{#1}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
 
 \title{\textbf{Robot de auto-balanceo de dos ruedas con aprendizaje por refuerzo profundo}\\[4pt]
 \large Informe final --- CC3104 Aprendizaje por Refuerzo}
@@ -38,13 +39,64 @@
 Se comparan cuatro algoritmos de control continuo de Stable-Baselines3 (DDPG, TD3, SAC y PPO) en la tarea de balancear un robot de dos ruedas simulado en MuJoCo, y se contrastan con un controlador PID en cascada. Los cuatro algoritmos se afinaron con el mismo presupuesto (40 pruebas de Optuna de 200\,000 pasos) y se entrenaron con un millón de pasos en un entorno con comandos de velocidad y empujones, con 10 semillas cada uno. Después se evaluaron en cuatro niveles de dificultad, en una prueba de empujón y entrenando con aleatorización de dominio. TD3 obtiene el mejor desempeño en las condiciones de entrenamiento (IQM del retorno 891 de 1000) y se recupera más rápido de los empujones. SAC es el más eficiente en muestras y el más consistente entre semillas. PPO es el que mejor generaliza, sin haberlo entrenado ahí, al nivel con ruido de sensores, latencia y física aleatorizada. Los diagnósticos internos confirman el mecanismo que distingue a TD3 de DDPG: DDPG sobreestima el valor $Q$ en unos 41 puntos de retorno, mientras que el doble crítico de TD3 lo subestima. Todos los agentes superan al PID cuando hay ruido y latencia, aunque el PID tolera empujones aislados más fuertes.
 \end{abstract}
 
-\section{Pregunta de investigación e hipótesis}
+\tableofcontents
 
+%==========================================================================
+\section{Descripción del problema}
+
+Un robot de dos ruedas con auto-balanceo es un péndulo invertido montado sobre ruedas: el chasis se cae si nadie lo corrige, y la única forma de mantenerlo vertical es mover las ruedas por debajo de su centro de masa. Es un problema clásico de control porque combina tres dificultades:
+\begin{itemize}
+  \item \textbf{Es inestable en lazo abierto.} Sin una acción de control en cada instante, cualquier inclinación crece hasta que el robot cae.
+  \item \textbf{Tiene fase no mínima en velocidad.} Para avanzar o frenar, el robot primero tiene que mover las ruedas en el sentido contrario e inclinarse; un controlador que persigue la velocidad de forma directa lo desestabiliza.
+  \item \textbf{Debe funcionar con información imperfecta.} Un robot real solo conoce su estado a través de una IMU y de encoders en las ruedas, con ruido, saturación y latencia, y recibe perturbaciones externas (empujones, cambios de masa o de fricción).
+\end{itemize}
+
+El aprendizaje por refuerzo~\cite{sutton2018} profundo ofrece varios algoritmos para control continuo que pueden aprender una política directamente a partir de la interacción, sin un modelo del sistema. Pero cada uno tiene un mecanismo distinto (crítico determinista, doble crítico, máxima entropía, gradiente de política con recorte), y en la literatura es común compararlos con valores por defecto y una sola semilla, lo que no permite saber cuál es mejor ni por qué~\cite{henderson2018,agarwal2021}.
+
+El proyecto responde la siguiente pregunta:
 \begin{quote}
 ¿Qué algoritmo ofrece el mejor desempeño para el auto-balanceo robusto ante perturbaciones, y qué mecanismos técnicos de cada algoritmo explican ese resultado?
 \end{quote}
 
-Para que la comparación no se reduzca a entrenar cuatro veces con valores por defecto, el proyecto usa un entorno propio con dificultad creciente, el mismo presupuesto de afinamiento y de pasos para todos los algoritmos, varias semillas con estadística robusta, diagnósticos internos que explican los resultados, y una línea base clásica. Las hipótesis se escribieron antes de los experimentos finales:
+%==========================================================================
+\section{Análisis}
+
+\subsection{Qué necesita un buen controlador}
+
+Del problema se desprenden los requisitos que debe cumplir una política:
+\begin{enumerate}
+  \item Mantener la vertical, es decir, una inclinación $\theta$ cercana a cero, durante todo el episodio.
+  \item Seguir comandos de velocidad lineal $v^*$ y de giro $\dot\psi^*$ cuando se le piden.
+  \item Recuperarse de empujones, en el menor tiempo posible y tolerando la mayor fuerza posible.
+  \item Hacerlo con acciones suaves y poco esfuerzo, porque un motor real no soporta cambios bruscos de torque y las acciones de alta frecuencia amplifican el ruido de los sensores.
+  \item Usar solo lo que mediría un robot real, para que la política sea, en principio, transferible.
+\end{enumerate}
+
+\subsection{Por qué estos algoritmos}
+
+Los cuatro algoritmos son los métodos estándar de control continuo y representan mecanismos distintos que se pueden contrastar:
+\begin{itemize}
+  \item \textbf{DDPG}~\cite{lillicrap2016}: actor-crítico determinista \emph{off-policy}. Aprende un crítico $Q(s,a)$ y un actor que lo maximiza. Es conocido por sobreestimar $Q$ y ser inestable.
+  \item \textbf{TD3}~\cite{fujimoto2018}: corrige a DDPG con tres cambios: el mínimo de dos críticos (en la línea de \emph{double Q-learning}~\cite{vanhasselt2010}), retrasar la actualización del actor y suavizar la acción objetivo con ruido.
+  \item \textbf{SAC}~\cite{haarnoja2018,haarnoja2018apps}: \emph{off-policy} con política estocástica, que maximiza el retorno más la entropía de la política. También usa dos críticos y ajusta de forma automática el peso de la entropía.
+  \item \textbf{PPO}~\cite{schulman2017}: \emph{on-policy}, de gradiente de política con un objetivo recortado que limita cuánto cambia la política en cada actualización. Estima ventajas con GAE~\cite{schulman2016}.
+\end{itemize}
+Como línea base se usa un controlador clásico: si el aprendizaje por refuerzo no supera a un PID bien ajustado, no aporta nada en este problema~\cite{astrom2008}.
+
+\subsection{Qué hace falta para que la comparación sea justa}
+
+Henderson et al.~\cite{henderson2018} muestran que, en RL profundo, la semilla y los hiperparámetros pueden cambiar más el resultado que el algoritmo. Por eso la comparación necesita:
+\begin{itemize}
+  \item el mismo entorno, la misma red y el mismo código de entrenamiento para los cuatro;
+  \item el mismo presupuesto de afinamiento y de pasos de entorno;
+  \item varias semillas y una estadística robusta entre ellas, como la media intercuartil (IQM) con intervalos de confianza por bootstrap~\cite{agarwal2021};
+  \item diagnósticos internos que expliquen el resultado, no solo el retorno;
+  \item escenarios de evaluación más duros que los de entrenamiento, para medir generalización.
+\end{itemize}
+
+\subsection{Hipótesis}
+
+Del análisis de los mecanismos salen cuatro hipótesis, escritas antes de los experimentos finales:
 \begin{description}[font=\normalfont\bfseries]
   \item[H1] TD3 sobreestima menos $Q$ que DDPG y por eso entrena de forma más estable.
   \item[H2] SAC se recupera mejor de empujones grandes, por la exploración que le da la entropía.
@@ -52,7 +104,39 @@ Para que la comparación no se reduzca a entrenar cuatro veces con valores por d
   \item[H4] Los agentes igualan al PID en el nivel 0 y lo superan en los niveles 2 y 3.
 \end{description}
 
-\section{Entorno}
+%==========================================================================
+\section{Propuesta de solución}
+
+La propuesta tiene cinco piezas:
+\begin{enumerate}
+  \item \textbf{Un entorno propio en MuJoCo}, con la interfaz de Gymnasium, en el que el robot solo observa lo que medirían una IMU y los encoders, y con \textbf{cuatro niveles de dificultad} que comparten el mismo espacio de observación. Así un agente entrenado en un nivel se puede evaluar en todos.
+  \item \textbf{Un PID en cascada} como línea base, evaluado con el mismo código que los agentes.
+  \item \textbf{Un único pipeline} de entrenamiento, afinamiento y evaluación para los cuatro algoritmos, sobre Stable-Baselines3, en el que cada algoritmo se distingue solo por su archivo de configuración.
+  \item \textbf{Un protocolo experimental} con el mismo presupuesto para todos: afinamiento con Optuna, corridas finales con varias semillas, evaluación con semillas fijas y diagnósticos internos.
+  \item \textbf{Seis experimentos} que responden partes distintas de la pregunta (tabla~\ref{tab:experimentos}).
+\end{enumerate}
+
+\begin{table}[H]
+\centering
+\caption{Experimentos.}
+\label{tab:experimentos}
+\small
+\begin{tabularx}{\textwidth}{@{}clY@{}}
+\toprule
+Id & Experimento & Pregunta \\
+\midrule
+E1 & Curvas por pasos de entorno & ¿Quién aprende con menos interacción? \\
+E2 & Curvas por tiempo de reloj & ¿Quién aprende más rápido en la práctica? \\
+E3 & Desempeño final en los niveles 0--3 & ¿Quién generaliza a condiciones más duras? \\
+E4 & Prueba de empujón & ¿Cuánta fuerza tolera cada uno y qué tan rápido se recupera? \\
+E5 & Entrenar con aleatorización (nivel 3) & ¿La aleatorización mejora la robustez? \\
+E6 & Comparación contra el PID & ¿Dónde aporta el RL frente al control clásico? \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+%==========================================================================
+\section{Descripción de la solución}
 
 \subsection{Modelo físico}
 
@@ -91,14 +175,14 @@ El episodio termina si $|\theta|>0.6$\,rad (el robot cayó) y se trunca a los 10
 \centering
 \caption{Niveles de dificultad. Todos comparten el espacio de observación: se entrena en uno y se evalúa en todos.}
 \label{tab:niveles}
-\begin{tabularx}{\textwidth}{@{}cX@{}}
+\begin{tabularx}{\textwidth}{@{}cY@{}}
 \toprule
 Nivel & Qué agrega \\
 \midrule
 0 & Balanceo en reposo. \\
 1 & Empujones aleatorios de hasta \SI{8}{N} durante \SI{0.1}{s}, uno cada \SI{2}{s} en promedio, en la parte alta del chasis. \\
 2 & Comandos de velocidad ($\pm$\SI{0.5}{m/s}) y de giro ($\pm$\SI{1}{rad/s}) que cambian cada 2--\SI{4}{s}. \textbf{Nivel de entrenamiento.} \\
-3 & Ruido gaussiano en los sensores, latencia de 0--\SI{20}{ms}, masa $\pm$20\,\%, fricción $\pm$30\,\% y torque $\pm$10\,\%. La recompensa usa las lecturas limpias. \\
+3 & Ruido gaussiano en los sensores, latencia de 0--\SI{20}{ms}, masa $\pm$20\,\%, fricción $\pm$30\,\% y torque $\pm$10\,\%~\cite{tobin2017}. La recompensa usa las lecturas limpias. \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -107,11 +191,32 @@ Nivel & Qué agrega \\
 
 Un lazo externo convierte el error de velocidad en un pitch objetivo, un lazo interno convierte el error de pitch en torque, y un término diferencial entre ruedas controla el giro. El PID usa solo la observación, igual que los agentes, y se evalúa con el mismo código. Sus ganancias se eligieron con una búsqueda en rejilla en el nivel 0. El lazo de velocidad tiene que ser lento: para frenar, el robot primero acelera las ruedas (fase no mínima), y con ganancias altas se vuelve inestable.
 
-\section{Método}
-
 \subsection{Pipeline común}
 
-Los cuatro algoritmos pasan por los mismos scripts de entrenamiento, afinamiento y evaluación (\code{training/train.py}, \code{training/tune.py}, \code{evaluation/}), y solo cambia el archivo YAML de cada uno. La red es fija para todos: una MLP $[256,256]$. Cada corrida guarda la semilla, la configuración completa, las versiones de las librerías, el commit de git, la máquina y la duración. El repositorio tiene 112 pruebas automáticas.
+Los cuatro algoritmos pasan por los mismos scripts de entrenamiento, afinamiento y evaluación (\code{training/train.py}, \code{training/tune.py}, \code{evaluation/}), y solo cambia el archivo YAML de cada uno. La red es fija para todos: una MLP $[256,256]$. Cada corrida guarda la semilla, la configuración completa, las versiones de las librerías, el commit de git, la máquina y la duración. Ningún hiperparámetro ni constante física está escrito en el código: todo sale de \code{configs/} o del MJCF. El repositorio tiene 112 pruebas automáticas. La tabla~\ref{tab:repo} resume su organización.
+
+\begin{table}[H]
+\centering
+\caption{Organización del repositorio.}
+\label{tab:repo}
+\small
+\begin{tabularx}{\textwidth}{@{}lY@{}}
+\toprule
+Carpeta & Contenido \\
+\midrule
+\code{assets/} & Modelo MJCF del robot (\code{balance\_bot.xml}). \\
+\code{envs/} & Entorno \code{BalanceBotEnv}, comandos, empujones, aleatorización de dominio y grabación de video. \\
+\code{baselines/} & PID en cascada. \\
+\code{configs/} & YAML de niveles, algoritmos, entrenamiento, afinamiento, PID y evaluación. \\
+\code{training/} & Entrenamiento, afinamiento con Optuna y \emph{callbacks} de evaluación y diagnóstico. \\
+\code{evaluation/} & Evaluación en los niveles 0--3 y prueba de empujón. \\
+\code{analysis/} & Estadística entre semillas, figuras, tablas y videos finales. \\
+\code{lab/} & Herramientas para afinar y correr semillas en otras máquinas y en Google Colab. \\
+\code{tests/} & Pruebas automáticas con \code{pytest}. \\
+\code{docs/} & Especificación, entregables, resultados en Markdown y este informe. \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \subsection{Afinamiento}
 
@@ -122,7 +227,7 @@ Cada algoritmo se afinó con Optuna en el nivel 2, con el mismo presupuesto: 40 
 \caption{Mejor configuración encontrada por algoritmo (40 pruebas $\times$ 200\,000 pasos, nivel 2).}
 \label{tab:afinamiento}
 \small
-\begin{tabularx}{\textwidth}{@{}lcX@{}}
+\begin{tabularx}{\textwidth}{@{}lcY@{}}
 \toprule
 Algoritmo & Objetivo & Hiperparámetros elegidos \\
 \midrule
@@ -136,28 +241,143 @@ PPO & 865.9 & lr $1.61\times10^{-4}$, clip 0.163, 16 épocas, 2048 pasos por rol
 
 \subsection{Protocolo experimental}
 
-Con la mejor configuración, cada algoritmo se entrenó un millón de pasos en el nivel 2 con 10 semillas, y en el nivel 3 con 5 semillas (experimento E5). La evaluación final usa la política determinista, 50 episodios por nivel con semillas fijas, distintas de las de entrenamiento e iguales para todas las políticas. Entre semillas se reporta el IQM (media intercuartil) con intervalos de confianza al 95\,\% por bootstrap. La tabla~\ref{tab:experimentos} resume los experimentos.
+Con la mejor configuración, cada algoritmo se entrenó un millón de pasos en el nivel 2 con 10 semillas, y en el nivel 3 con 5 semillas (experimento E5). La evaluación final usa la política determinista, 50 episodios por nivel con semillas fijas, distintas de las de entrenamiento e iguales para todas las políticas. Entre semillas se reporta el IQM (media intercuartil) con intervalos de confianza al 95\,\% por bootstrap.
+
+Las 60 corridas finales se repartieron entre tres tipos de máquina: la laptop de Mario (DDPG y PPO), Google Colab (tres semillas de DDPG) y la computadora de Christian (TD3 y SAC). Como el desempeño no depende de la máquina pero el tiempo de reloj sí, E2 solo compara algoritmos que corrieron en la misma máquina.
+
+%==========================================================================
+\section{Herramientas aplicadas}
+
+Se detallan con más cuidado las herramientas que no se vieron en clase: MuJoCo, Optuna, rliable y la herramienta de IA generativa.
+
+\subsection{MuJoCo}
+
+MuJoCo (\emph{Multi-Joint dynamics with Contact})~\cite{todorov2012} es un motor de física para robótica, de código abierto desde 2022, con \emph{bindings} oficiales de Python (paquete \code{mujoco}). Se usa en investigación de RL porque simula contactos de forma rápida y estable.
+
+\begin{itemize}
+  \item \textbf{MJCF.} El robot se describe en un archivo XML (\code{assets/balance\_bot.xml}) con cuerpos, articulaciones, geometrías, actuadores y sensores. El chasis es un cuerpo libre; cada rueda es un cuerpo hijo con una articulación de bisagra y un actuador de torque limitado a $\pm$\SI{0.3}{N\,m}.
+  \item \textbf{Sensores.} MuJoCo calcula sensores como lo haría el hardware: \code{framequat} (orientación de la IMU), \code{gyro} (velocidad angular, con corte en \SI{34.9}{rad/s} $\approx$ \SI{2000}{°/s}), \code{accelerometer} y \code{jointvel} en cada rueda (encoders). La observación del entorno sale solo de estos sensores.
+  \item \textbf{Integración.} Paso de \SI{2}{ms} (\SI{500}{Hz}) con el integrador \code{implicitfast}, más estable que Euler para el amortiguamiento de las ruedas; el entorno aplica cada acción durante 5 pasos de física (control a \SI{100}{Hz}).
+  \item \textbf{Perturbaciones y aleatorización.} Los empujones se aplican como una fuerza externa sobre el chasis (\code{xfrc\_applied}); la aleatorización del nivel 3 modifica la masa e inercia del chasis, la fricción de las ruedas y la relación de transmisión (\code{gear}) de los actuadores en el modelo al inicio de cada episodio.
+  \item \textbf{Render.} El renderizado sin ventana (\code{mujoco.Renderer}) produce los cuadros de los videos.
+\end{itemize}
+
+\subsection{Gymnasium}
+
+Gymnasium~\cite{towers2024} define la interfaz estándar de un entorno de RL: \code{reset()} y \code{step(a)}, que devuelve observación, recompensa y las banderas \code{terminated} (el robot cayó) y \code{truncated} (se acabó el tiempo). Distinguirlas es importante: al truncar, el valor del estado siguiente no es cero. El entorno pasa el verificador \code{check\_env} de Gymnasium.
+
+\subsection{Stable-Baselines3}
+
+Stable-Baselines3~\cite{raffin2021} ofrece implementaciones probadas de DDPG, TD3, SAC y PPO con la misma interfaz, lo que permite que el pipeline sea uno solo. Se usaron sus \emph{callbacks} para evaluar cada 10\,000 pasos y para los diagnósticos internos, y su registro en TensorBoard. Los algoritmos no se implementaron desde cero: el aporte del proyecto es el entorno, el protocolo y el análisis.
+
+\subsection{Optuna}
+
+Optuna~\cite{akiba2019} es una librería de optimización de hiperparámetros. Un \emph{estudio} contiene \emph{pruebas}; en cada prueba, una función objetivo pide valores (\code{trial.suggest\_float}, \code{suggest\_categorical}), entrena y devuelve un número que Optuna maximiza.
+
+\begin{itemize}
+  \item \textbf{Muestreador TPE}~\cite{bergstra2011}. El \emph{Tree-structured Parzen Estimator} separa las pruebas ya hechas en buenas y malas, modela la densidad de los hiperparámetros en cada grupo y propone los valores que maximizan el cociente entre ambas densidades. Las primeras pruebas son aleatorias, para tener con qué modelar.
+  \item \textbf{Poda por mediana.} Durante el entrenamiento, cada prueba reporta su retorno de evaluación. Si en un mismo punto queda por debajo de la mediana de las pruebas anteriores, se detiene. Esto ahorra cómputo en configuraciones que claramente no funcionan.
+  \item \textbf{Almacenamiento en SQLite.} El estudio vive en un archivo \code{.db}, así que varios procesos pueden afinar a la vez el mismo estudio y un afinamiento cortado se puede reanudar. Para Colab y otras máquinas, \code{lab/} empaqueta y luego une los estudios.
+  \item \textbf{Objetivo.} La media de las últimas tres evaluaciones, para no premiar un pico aislado.
+\end{itemize}
+
+\subsection{rliable}
+
+rliable~\cite{agarwal2021} implementa la metodología propuesta por Agarwal et al.\ para reportar resultados de RL con pocas semillas:
+\begin{itemize}
+  \item \textbf{IQM (media intercuartil).} Promedio del 50\,\% central de las corridas: descarta el 25\,\% más bajo y el 25\,\% más alto. Es más robusto que la media ante una semilla atípica y más eficiente que la mediana.
+  \item \textbf{Intervalos de confianza por bootstrap.} Se remuestrean las semillas con reemplazo muchas veces, se calcula el IQM de cada remuestra y los percentiles 2.5 y 97.5 dan el intervalo al 95\,\%.
+\end{itemize}
+El módulo \code{rliable.library} no funciona con pandas 3 en este entorno, así que el IQM sale de \code{rliable.metrics} y el bootstrap se implementó aparte con el mismo método.
+
+\subsection{Otras herramientas}
+
+\begin{itemize}
+  \item \textbf{PyTorch}, como motor de las redes de SB3 (solo CPU).
+  \item \textbf{TensorBoard}, para seguir las curvas y los diagnósticos durante el entrenamiento.
+  \item \textbf{NumPy, pandas y Matplotlib}, para el análisis, las tablas y las figuras.
+  \item \textbf{imageio con FFmpeg}, para los videos de los controladores.
+  \item \textbf{pytest}, con 112 pruebas del entorno, el PID, el pipeline y la evaluación.
+  \item \textbf{Git y GitHub}, para el código y la documentación; las corridas finales se versionaron para compartirlas entre máquinas.
+  \item \textbf{Google Colab}, para correr semillas y pruebas de afinamiento adicionales.
+\end{itemize}
+
+\subsection{Herramienta de IA generativa}
+
+\subsubsection{Herramienta y forma de trabajo}
+
+Los dos integrantes usaron Claude Code~\cite{claudecode}, el agente de programación de Anthropic, que trabaja en la terminal sobre el repositorio: lee archivos, propone cambios, ejecuta comandos y pruebas. Los dos partieron de la misma documentación, que funciona como contrato entre el equipo y el agente:
+\begin{itemize}
+  \item \code{docs/especificacion-proyecto.md}: la fuente de verdad del proyecto. Define la pregunta, el entorno, la recompensa, los algoritmos, el protocolo, los diagnósticos y una lista de \emph{decisiones abiertas} (sección 13) que solo el equipo puede cerrar. Todo cambio se anota en una bitácora (sección 14).
+  \item \code{AGENTS.md}: las reglas para el agente. Analizar antes de programar, proponer antes de modificar un archivo existente, no decidir solo las decisiones abiertas, no escribir hiperparámetros en el código, usar solo observaciones de IMU y encoders, una prueba por componente y correr \code{pytest} antes de terminar.
+  \item \code{docs/entregables.md}: el plan por entregables (E0--E13), con responsable y estado.
+\end{itemize}
+El agente no decidía el diseño: proponía, el equipo aprobaba o corregía, y las decisiones abiertas (por ejemplo PID o LQR, el número de semillas o la normalización de observaciones) se cerraron entre los dos y quedaron registradas.
+
+\subsubsection{Prompts usados}
+
+La tabla~\ref{tab:prompts} reúne prompts representativos de las sesiones de Christian, en orden cronológico y textuales (solo se recortaron con [\ldots]). Mario trabajó de la misma forma, con la misma documentación; un resumen de una de sus sesiones está en \code{docs/resumen-sesion-2026-11-07.md}.
 
 \begin{table}[H]
 \centering
-\caption{Experimentos.}
-\label{tab:experimentos}
+\caption{Prompts representativos y lo que produjeron.}
+\label{tab:prompts}
 \small
-\begin{tabularx}{\textwidth}{@{}clX@{}}
+\begin{tabularx}{\textwidth}{@{}p{1.6cm}>{\raggedright\arraybackslash}p{7.2cm}Y@{}}
 \toprule
-Id & Experimento & Pregunta \\
+Fecha & Prompt & Resultado \\
 \midrule
-E1 & Curvas por pasos de entorno & ¿Quién aprende con menos interacción? \\
-E2 & Curvas por tiempo de reloj & ¿Quién aprende más rápido en la práctica? \\
-E3 & Desempeño final en los niveles 0--3 & ¿Quién generaliza a condiciones más duras? \\
-E4 & Prueba de empujón & ¿Cuánta fuerza tolera cada uno y qué tan rápido se recupera? \\
-E5 & Entrenar con aleatorización (nivel 3) & ¿La aleatorización mejora la robustez? \\
-E6 & Comparación contra el PID & ¿Dónde aporta el RL frente al control clásico? \\
+1 nov & ``Como estas, mira por favor revisate los documentos dentro de este repositorio por favor, [\ldots] hagamos por medio de entregables todo, [\ldots] estoy trabajando con un compañero en este proyecto por lo que el hará la implementacion de DDPG y PPO y yo lo demas'' & Revisión de la especificación, plan por entregables (\code{docs/entregables.md}) y reparto por algoritmo. \\
+1 nov & ``1. Vamos con las correcciones [\ldots] 2. Si usemos SB3, mi compañero igual lo utilizará. 3. La fecha de entrega es por ahi del 13 de noviembre, pero hay que hacer un entregable para el 2'' & Correcciones a la especificación y calendario con el avance del 2 de noviembre. \\
+1 nov & ``Anota los valores encontrados por favor creo que si es pertinente hacerlo'' & Resultados de las pruebas del modelo físico (fricción, amortiguamiento, integrador, saturación de sensores) anotados en la especificación. \\
+1 nov & ``Va vamos con eso, veamos lo de los nucleos y que pasa con el tiempo estimado'' / ``estos tiempos que tanto crees que se acortarian si es que lo hicieramos en algo como google colab?'' & Medición de pasos por segundo y estimación del cómputo; origen de las herramientas para correr en varias máquinas. \\
+2 nov & ``Hazte otro porfa dejemos todo listo para el avance de hoy'' / ``Te podrias crear un documento latex con los avances para la entrega'' & Pipeline común, niveles 1--3, prueba de humo de TD3 y SAC y documento LaTeX del avance. \\
+9 nov & ``revisa lo que acabo de pullear porfavor y dame update, mi compañero tambien me envio esto: [estado de las corridas de DDPG y PPO]'' & Integración del trabajo de Mario; plan para afinar TD3 y SAC (40 $\times$ 200k) y correr sus semillas; confirmación de 10 y 5 semillas. \\
+9 nov & ``olvide mi cargador y estoy cargando la computadora con un cargador de solo 65 watts, [\ldots] crees que podamos correr esto con la extension de colab de vscode?'' & Pausa de los procesos, comparación con Colab y, después, un guardia de batería que pausaba el entrenamiento si la carga bajaba. \\
+9 nov & ``Documentos de seguimiento: [\ldots] termina esto tambien, solo me queda duda con los videos si solo con esos dos esta'' & Especificación y entregables al día y script de videos de los controladores finales. \\
+9 nov & ``Me gusta un monton la presentacion, pero quitemos toda la IA slop, subtitulos, puntos para separacion de titulos [\ldots] intentemos con otro tipo de brief'' & Rediseño de la presentación. \\
+9 nov & [Requisitos del documento final] ``crees que cumplimos con todo?'' & Revisión contra la rúbrica y reorganización de este informe. \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
+\subsubsection{Evolución de la idea}
+
+\begin{enumerate}
+  \item \textbf{Propuesta inicial (19 de octubre).} La especificación nace con la pregunta de investigación, los cuatro algoritmos, una línea base ``PID o LQR'', afinamiento con Optuna y niveles de dificultad. Varios valores están marcados como propuesta o decisión abierta.
+  \item \textbf{Fase 1, entorno (1--2 de noviembre).} Se construyen el MJCF, el entorno del nivel 0 y el PID. Las pruebas del modelo fijan la fricción, el amortiguamiento, el integrador y los límites de los sensores, que se anotan en la especificación. Se elige el PID en cascada como línea base porque balancea 20 de 20 episodios en el nivel 0. Aparece el problema de la fase no mínima: el lazo de velocidad tiene que ser lento.
+  \item \textbf{Fase 2, pipeline (2 de noviembre).} Se escriben \code{train.py} y los niveles 1--3, y una prueba de humo confirma que los cuatro algoritmos aprenden con el mismo código. Con esto se entrega el avance.
+  \item \textbf{Fase 3, afinamiento y diagnósticos (5--7 de noviembre, Mario).} Configuraciones de DDPG y PPO, \code{tune.py} con Optuna, diagnósticos de sobreestimación de $Q$ y suavidad, y las herramientas de \code{lab/} para afinar y correr semillas en otras computadoras y en Colab, porque el cómputo de una sola laptop no alcanzaba.
+  \item \textbf{Corridas finales (7--9 de noviembre).} DDPG y PPO corren en la laptop de Mario y en Colab; TD3 y SAC se afinan y corren en la computadora de Christian. Las limitaciones prácticas (horas de cómputo, un cargador insuficiente) llevan a fijar 10 semillas en el nivel 2 y 5 en el nivel 3, y a no normalizar observaciones.
+  \item \textbf{Evaluación y análisis (9 de noviembre).} Se escriben la evaluación en los cuatro niveles y la prueba de empujón. La primera versión medía \SI{3}{s} tras el empujón y el tiempo de recuperación del PID salía indefinido; al revisar se vio que el PID tarda unos \SI{3}{s} en recuperarse y la ventana se amplió a \SI{6}{s}. Después vienen el análisis estadístico, este informe, los videos y la presentación.
+\end{enumerate}
+
+\subsubsection{Entendimiento de la solución}
+
+La IA aceleró la escritura de código y documentos, pero el equipo mantuvo el control y el entendimiento de la solución de varias formas:
+\begin{itemize}
+  \item \textbf{Las decisiones fueron del equipo.} Las reglas de \code{AGENTS.md} obligan al agente a detenerse ante una decisión abierta y a proponer antes de modificar un archivo existente. Cada decisión cerrada quedó en la bitácora de la especificación con su autor.
+  \item \textbf{Las hipótesis se escribieron antes de los resultados}, y se rechazan cuando los datos lo indican (H2) en lugar de ajustarlas.
+  \item \textbf{Cada componente tiene pruebas}, y \code{pytest} se corre antes de dar una tarea por terminada.
+  \item \textbf{Los resultados se explican por los mecanismos} de cada algoritmo: el mínimo de dos críticos de TD3 contra la sobreestimación de DDPG, las acciones suaves de PPO frente al ruido, la política conservadora que produce la aleatorización. Esos argumentos se verificaron con los diagnósticos internos, no solo con el retorno.
+  \item \textbf{Los errores se detectaron revisando los datos}, como la ventana de la prueba de empujón o las semillas de DDPG en Colab, que se excluyeron de la comparación de tiempo de reloj.
+\end{itemize}
+
+%==========================================================================
 \section{Resultados}
+
+\subsection{Métricas}
+
+\begin{itemize}
+  \item \textbf{Retorno}: suma de la recompensa del episodio; el máximo es 1000. El \emph{retorno final} de una corrida es la media de sus últimas tres evaluaciones durante el entrenamiento.
+  \item \textbf{Pasos y horas al 90\,\%}: pasos de entorno y tiempo de reloj hasta alcanzar el 90\,\% del retorno final.
+  \item \textbf{Tasa de caídas}: fracción de episodios que terminan porque $|\theta|>0.6$\,rad.
+  \item \textbf{RMSE de seguimiento}: error cuadrático medio entre la velocidad lineal o de giro y su comando.
+  \item \textbf{Suavidad}: $\lVert a_t-a_{t-1}\rVert$ promedio. \textbf{Esfuerzo}: $\lVert a_t\rVert^2$ promedio. \textbf{Energía de alta frecuencia}: fracción de la energía de la acción por encima de \SI{5}{Hz}.
+  \item \textbf{Fuerza máxima tolerada}: la mayor fuerza de un empujón tras la cual el robot no cae, buscada por bisección.
+  \item \textbf{Tiempo de recuperación}: tiempo desde el empujón hasta que $|\theta|<2°$ de forma sostenida durante \SI{0.5}{s}.
+  \item \textbf{Sobreestimación de $Q$}: diferencia entre $Q(s,\pi(s))$ del crítico y el retorno descontado real obtenido desde esos estados.
+\end{itemize}
 
 \subsection{E1 y E2: eficiencia de muestras y de tiempo}
 
@@ -243,7 +463,7 @@ Esfuerzo $\lVert a\rVert^2$, nivel 3 & 0.457 & 0.567 & 0.704 & \best{0.135} & 1.
 
 \subsection{E4: prueba de empujón}
 
-En el nivel 0 se aplica un único empujón a $t=\SI{2}{s}$ en la parte alta del chasis, hacia adelante y hacia atrás, desde cinco estados iniciales. La fuerza máxima tolerada se busca por bisección; el tiempo de recuperación es el tiempo hasta que $|\theta|<2°$ de forma sostenida durante \SI{0.5}{s}.
+En el nivel 0 se aplica un único empujón a $t=\SI{2}{s}$ en la parte alta del chasis, hacia adelante y hacia atrás, desde cinco estados iniciales. La fuerza máxima tolerada se busca por bisección.
 
 \begin{table}[H]
 \centering
@@ -320,7 +540,7 @@ PPO & --- & 0.039 & \best{0.22} \\
 
 DDPG empieza sobreestimando $Q$ en más de 200 puntos y termina en $+41$ (figura~\ref{fig:q}). TD3, con el mínimo de dos críticos, subestima de forma estable ($-20$), y SAC, que también usa doble crítico pero suma el bono de entropía, queda cerca de cero. La sobreestimación de DDPG coincide con su entrenamiento más inestable y con acciones casi tres veces más bruscas.
 
-\section{Contraste de hipótesis}
+\subsection{Contraste de hipótesis}
 
 \begin{description}[font=\normalfont\bfseries]
   \item[H1 --- se confirma.] DDPG sobreestima $Q$ ($+41$) y TD3 no ($-20$), con intervalos que no se traslapan. TD3 entrena de forma más estable (peor semilla 572 contra 511, curvas sin caídas) y con acciones más suaves.
@@ -329,18 +549,8 @@ DDPG empieza sobreestimando $Q$ en más de 200 puntos y termina en $+41$ (figura
   \item[H4 --- se confirma con matices.] Los cuatro agentes igualan al PID en el nivel 0 y lo superan con claridad en el nivel 3. En el nivel 2, solo TD3 y SAC lo superan en retorno, aunque los cuatro siguen mejor la velocidad. El PID conserva dos ventajas: no se cae en los niveles 1 y 2, y tolera el empujón aislado más fuerte.
 \end{description}
 
-\section{Limitaciones}
-
-\begin{itemize}
-  \item El afinamiento usa una sola semilla por prueba, así que la mejor configuración puede deberse en parte al azar. No hubo tiempo de revalidarla con más semillas.
-  \item El nivel 3 tiene 5 semillas por algoritmo; sus intervalos son anchos.
-  \item Las corridas se repartieron entre tres tipos de máquina (laptop, Ryzen 7 y Colab). El desempeño no depende de la máquina, pero el tiempo de reloj (E2) solo se compara dentro de cada una. DDPG 4--6 corrieron en Colab con Python 3.13; las demás librerías son iguales.
-  \item \code{rliable.\allowbreak library} no funciona con pandas 3 en este entorno. El IQM sale de \code{rliable.metrics} y el bootstrap se implementó aparte con el mismo método (percentil, 95\,\%).
-  \item No se normalizaron las observaciones: la prueba inicial con una semilla no fue concluyente y la decisión se aplicó igual a los cuatro algoritmos.
-  \item El PID se ajustó en el nivel 0 y no se reajustó para el ruido del nivel 3. Un PID con filtros o ganancias más bajas probablemente reduciría su desventaja ahí.
-\end{itemize}
-
-\section{Conclusiones y dictamen}
+%==========================================================================
+\section{Conclusión}
 
 \textbf{TD3 es el mejor algoritmo para esta tarea en las condiciones para las que se entrena}: tiene el mayor retorno, la menor tasa de caídas, el mejor seguimiento de velocidad y la recuperación más rápida ante empujones. El mecanismo que lo explica es el que predice H1: el doble crítico con el mínimo y el retraso de la política eliminan la sobreestimación de $Q$ que desestabiliza a DDPG.
 
@@ -350,12 +560,63 @@ DDPG empieza sobreestimando $Q$ en más de 200 puntos y termina en $+41$ (figura
 
 Frente al control clásico, el aprendizaje por refuerzo aporta sobre todo robustez ante ruido y latencia, y mejor seguimiento de comandos. El PID sigue siendo competitivo en condiciones limpias y tolera mejor los empujones aislados muy fuertes.
 
-\section*{Reparto del trabajo}
+\subsection*{Limitaciones}
+
+\begin{itemize}
+  \item El afinamiento usa una sola semilla por prueba, así que la mejor configuración puede deberse en parte al azar. No hubo tiempo de revalidarla con más semillas.
+  \item El nivel 3 tiene 5 semillas por algoritmo; sus intervalos son anchos.
+  \item Las corridas se repartieron entre tres tipos de máquina (laptop, Ryzen 7 y Colab). El desempeño no depende de la máquina, pero el tiempo de reloj (E2) solo se compara dentro de cada una. DDPG 4--6 corrieron en Colab con Python 3.13; las demás librerías son iguales.
+  \item No se normalizaron las observaciones: la prueba inicial con una semilla no fue concluyente y la decisión se aplicó igual a los cuatro algoritmos.
+  \item El PID se ajustó en el nivel 0 y no se reajustó para el ruido del nivel 3. Un PID con filtros o ganancias más bajas probablemente reduciría su desventaja ahí.
+\end{itemize}
+
+\subsection*{Reparto del trabajo}
 
 \begin{itemize}
   \item \textbf{Christian Echeverría:} modelo físico, entorno y niveles, PID, pipeline de entrenamiento, evaluación y prueba de empujón, TD3 y SAC (afinamiento y corridas finales).
   \item \textbf{Mario Betancourt:} DDPG y PPO (configuración, espacio de búsqueda, afinamiento y corridas finales), afinamiento con Optuna, diagnósticos internos, herramientas para correr en otras máquinas y en Colab, y el análisis estadístico de las corridas finales.
   \item \textbf{Ambos:} análisis, informe y dictamen.
 \end{itemize}
+
+%==========================================================================
+\begin{thebibliography}{99}
+
+\bibitem{agarwal2021} R.~Agarwal, M.~Schwarzer, P.~S.~Castro, A.~Courville y M.~G.~Bellemare. Deep reinforcement learning at the edge of the statistical precipice. En \emph{Advances in Neural Information Processing Systems (NeurIPS)}, 2021.
+
+\bibitem{akiba2019} T.~Akiba, S.~Sano, T.~Yanase, T.~Ohta y M.~Koyama. Optuna: A next-generation hyperparameter optimization framework. En \emph{Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery \& Data Mining}, 2019.
+
+\bibitem{astrom2008} K.~J.~Åström y R.~M.~Murray. \emph{Feedback Systems: An Introduction for Scientists and Engineers}. Princeton University Press, 2008.
+
+\bibitem{bergstra2011} J.~Bergstra, R.~Bardenet, Y.~Bengio y B.~Kégl. Algorithms for hyper-parameter optimization. En \emph{Advances in Neural Information Processing Systems (NeurIPS)}, 2011.
+
+\bibitem{claudecode} Anthropic. Claude Code. \url{https://www.anthropic.com/claude-code}. Consultado en noviembre de 2026.
+
+\bibitem{fujimoto2018} S.~Fujimoto, H.~van Hoof y D.~Meger. Addressing function approximation error in actor-critic methods. En \emph{Proceedings of the 35th International Conference on Machine Learning (ICML)}, 2018.
+
+\bibitem{haarnoja2018} T.~Haarnoja, A.~Zhou, P.~Abbeel y S.~Levine. Soft actor-critic: Off-policy maximum entropy deep reinforcement learning with a stochastic actor. En \emph{Proceedings of the 35th International Conference on Machine Learning (ICML)}, 2018.
+
+\bibitem{haarnoja2018apps} T.~Haarnoja, A.~Zhou, K.~Hartikainen, G.~Tucker, S.~Ha, J.~Tan, V.~Kumar, H.~Zhu, A.~Gupta, P.~Abbeel y S.~Levine. Soft actor-critic algorithms and applications. \emph{arXiv:1812.05905}, 2018.
+
+\bibitem{henderson2018} P.~Henderson, R.~Islam, P.~Bachman, J.~Pineau, D.~Precup y D.~Meger. Deep reinforcement learning that matters. En \emph{Proceedings of the AAAI Conference on Artificial Intelligence}, 2018.
+
+\bibitem{lillicrap2016} T.~P.~Lillicrap, J.~J.~Hunt, A.~Pritzel, N.~Heess, T.~Erez, Y.~Tassa, D.~Silver y D.~Wierstra. Continuous control with deep reinforcement learning. En \emph{International Conference on Learning Representations (ICLR)}, 2016.
+
+\bibitem{raffin2021} A.~Raffin, A.~Hill, A.~Gleave, A.~Kanervisto, M.~Ernestus y N.~Dormann. Stable-Baselines3: Reliable reinforcement learning implementations. \emph{Journal of Machine Learning Research}, 22(268):1--8, 2021.
+
+\bibitem{schulman2016} J.~Schulman, P.~Moritz, S.~Levine, M.~Jordan y P.~Abbeel. High-dimensional continuous control using generalized advantage estimation. En \emph{International Conference on Learning Representations (ICLR)}, 2016.
+
+\bibitem{schulman2017} J.~Schulman, F.~Wolski, P.~Dhariwal, A.~Radford y O.~Klimov. Proximal policy optimization algorithms. \emph{arXiv:1707.06347}, 2017.
+
+\bibitem{sutton2018} R.~S.~Sutton y A.~G.~Barto. \emph{Reinforcement Learning: An Introduction}. 2.\textsuperscript{a} ed., MIT Press, 2018.
+
+\bibitem{tobin2017} J.~Tobin, R.~Fong, A.~Ray, J.~Schneider, W.~Zaremba y P.~Abbeel. Domain randomization for transferring deep neural networks from simulation to the real world. En \emph{IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)}, 2017.
+
+\bibitem{todorov2012} E.~Todorov, T.~Erez y Y.~Tassa. MuJoCo: A physics engine for model-based control. En \emph{IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)}, 2012.
+
+\bibitem{towers2024} M.~Towers et al. Gymnasium: A standard interface for reinforcement learning environments. \emph{arXiv:2407.17032}, 2024.
+
+\bibitem{vanhasselt2010} H.~van Hasselt. Double Q-learning. En \emph{Advances in Neural Information Processing Systems (NeurIPS)}, 2010.
+
+\end{thebibliography}
 
 \end{document}
