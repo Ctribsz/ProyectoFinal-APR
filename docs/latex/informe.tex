@@ -305,9 +305,41 @@ El módulo \code{rliable.library} no funciona con pandas 3 en este entorno, así
 
 \subsection{Herramienta de IA generativa}
 
-\subsubsection{Herramienta y forma de trabajo}
+Usamos Claude, de Anthropic, en dos etapas y de dos formas distintas:
+\begin{enumerate}
+  \item \textbf{Definición del proyecto} (15 de octubre al 1 de noviembre): Claude en conversación~\cite{claude}, como interlocutor técnico para escoger el tema, delimitar el alcance y escribir la documentación base del repositorio.
+  \item \textbf{Implementación} (1 al 9 de noviembre): Claude Code~\cite{claudecode}, el agente de programación que trabaja en la terminal sobre el repositorio, guiado por esa documentación.
+\end{enumerate}
+El registro completo de la primera etapa está en \code{docs/uso-ia.md}.
 
-Los dos integrantes usaron Claude Code~\cite{claudecode}, el agente de programación de Anthropic, que trabaja en la terminal sobre el repositorio: lee archivos, propone cambios, ejecuta comandos y pruebas. Los dos partieron de la misma documentación, que funciona como contrato entre el equipo y el agente:
+\subsubsection{Etapa 1: definición del proyecto}
+
+Fue un proceso de ida y vuelta: nosotros planteábamos ideas y restricciones, Claude proponía opciones y señalaba riesgos, y nosotros decidíamos. La tabla~\ref{tab:etapa1} resume la conversación; en esta etapa los prompts están resumidos, no textuales.
+
+\begin{table}[H]
+\centering
+\caption{Definición del proyecto con Claude: lo que planteamos, lo que propuso y lo que decidimos.}
+\label{tab:etapa1}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{3.9cm}YY@{}}
+\toprule
+Lo que planteamos & Lo que propuso Claude & Lo que decidimos \\
+\midrule
+Un proyecto basado en lo último visto en clase (Deep Q-Learning), con dificultad acorde a un equipo de cinco. & Cinco opciones: semáforos multiagente en SUMO, ablación de Rainbow DQN, \emph{self-play} en un juego de tablero, ajuste de un LLM con GRPO y manejo autónomo en \code{highway-env}. Desaconsejó el \emph{trading} con RL por el sobreajuste al histórico. & --- \\
+El equipo quedó en dos personas: ¿qué sigue siendo viable? & Redimensionó las opciones, descartó la del LLM por requerir GPU y sugirió otras: \emph{autoscaling}, inventario, batería solar, MiniGrid y \emph{reward hacking}. & --- \\
+Un tema propio: robot de auto-balanceo en MuJoCo comparando DDPG, TD3, SAC y PPO. & Lo consideró adecuado, pero señaló riesgos: un PID resuelve bien el balanceo puro, faltaba una línea base clásica, el entorno había que construirlo y la comparación necesitaba varias semillas. & El tema es nuestro. Por los riesgos, agregamos niveles de dificultad crecientes y un PID/LQR de referencia. \\
+¿Podemos usar implementaciones existentes de los algoritmos? & Advirtió el riesgo de ``correr \code{model.learn()} cuatro veces'' y propuso evitarlo con el mismo presupuesto de afinamiento en Optuna, el esfuerzo puesto en el entorno y diagnósticos internos. & Usar Stable-Baselines3 con ese protocolo. \\
+Un documento inicial en Markdown; ¿es viable un robot físico? & Redactó la especificación con valores marcados como propuesta y decisiones abiertas. Explicó los problemas de pasar de simulación a la realidad y luego propuso ampliar el alcance al robot físico. & Quedarnos en simulación, sin cerrar la puerta al robot real. \\
+La documentación para el repositorio, orientada a agentes de código. & Redactó \code{README.md}, \code{AGENTS.md}, \code{docs/fase-1-entorno.md}, \code{requirements.txt} y \code{.gitignore}. & Adoptar la estructura y las reglas de trabajo. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+En resumen, el tema, el uso de librerías existentes y la decisión de no construir un robot físico fueron nuestros. Claude aportó sobre todo la evaluación de riesgos, la estructura del protocolo experimental, el diseño de los cuatro niveles y la redacción de los documentos para agentes de código.
+
+\subsubsection{Etapa 2: implementación}
+
+Los dos integrantes usamos Claude Code a partir de la misma documentación, que funciona como contrato entre el equipo y el agente:
 \begin{itemize}
   \item \code{docs/especificacion-proyecto.md}: la fuente de verdad del proyecto. Define la pregunta, el entorno, la recompensa, los algoritmos, el protocolo, los diagnósticos y una lista de \emph{decisiones abiertas} (sección 13) que solo el equipo puede cerrar. Todo cambio se anota en una bitácora (sección 14).
   \item \code{AGENTS.md}: las reglas para el agente. Analizar antes de programar, proponer antes de modificar un archivo existente, no decidir solo las decisiones abiertas, no escribir hiperparámetros en el código, usar solo observaciones de IMU y encoders, una prueba por componente y correr \code{pytest} antes de terminar.
@@ -315,13 +347,11 @@ Los dos integrantes usaron Claude Code~\cite{claudecode}, el agente de programac
 \end{itemize}
 El agente no decidía el diseño: proponía, el equipo aprobaba o corregía, y las decisiones abiertas (por ejemplo PID o LQR, el número de semillas o la normalización de observaciones) se cerraron entre los dos y quedaron registradas.
 
-\subsubsection{Prompts usados}
-
-La tabla~\ref{tab:prompts} reúne prompts representativos de las sesiones de Christian, en orden cronológico y textuales (solo se recortaron con [\ldots]). Mario trabajó de la misma forma, con la misma documentación; un resumen de una de sus sesiones está en \code{docs/resumen-sesion-2026-11-07.md}.
+La tabla~\ref{tab:prompts} reúne prompts de las sesiones de Christian, en orden cronológico y textuales (solo se recortaron con [\ldots]). La columna \emph{Resultado} es un resumen nuestro. Muchos prompts fueron solo aprobaciones cortas, como ``VA sigamos con todo'', ``continua porfa'' o ``Va vamos con ello'': el plan estaba en la especificación y en los entregables, así que el agente proponía el siguiente paso y nosotros lo aprobábamos o corregíamos. Mario trabajó de la misma forma, con la misma documentación; un resumen de una de sus sesiones está en \code{docs/resumen-sesion-2026-11-07.md}.
 
 \begin{table}[H]
 \centering
-\caption{Prompts representativos y lo que produjeron.}
+\caption{Prompts de la implementación con Claude Code y lo que produjeron.}
 \label{tab:prompts}
 \small
 \begin{tabularx}{\textwidth}{@{}p{1.6cm}>{\raggedright\arraybackslash}p{7.2cm}Y@{}}
@@ -332,6 +362,7 @@ Fecha & Prompt & Resultado \\
 1 nov & ``1. Vamos con las correcciones [\ldots] 2. Si usemos SB3, mi compañero igual lo utilizará. 3. La fecha de entrega es por ahi del 13 de noviembre, pero hay que hacer un entregable para el 2'' & Correcciones a la especificación y calendario con el avance del 2 de noviembre. \\
 1 nov & ``Anota los valores encontrados por favor creo que si es pertinente hacerlo'' & Resultados de las pruebas del modelo físico (fricción, amortiguamiento, integrador, saturación de sensores) anotados en la especificación. \\
 1 nov & ``Va vamos con eso, veamos lo de los nucleos y que pasa con el tiempo estimado'' / ``estos tiempos que tanto crees que se acortarian si es que lo hicieramos en algo como google colab?'' & Medición de pasos por segundo y estimación del cómputo; origen de las herramientas para correr en varias máquinas. \\
+2 nov & ``VA sigamos con todo'' / ``continua porfa'' / ``Va vamos con ello'' & Aprobaciones para seguir con el plan de la fase 2. \\
 2 nov & ``Hazte otro porfa dejemos todo listo para el avance de hoy'' / ``Te podrias crear un documento latex con los avances para la entrega'' & Pipeline común, niveles 1--3, prueba de humo de TD3 y SAC y documento LaTeX del avance. \\
 9 nov & ``revisa lo que acabo de pullear porfavor y dame update, mi compañero tambien me envio esto: [estado de las corridas de DDPG y PPO]'' & Integración del trabajo de Mario; plan para afinar TD3 y SAC (40 $\times$ 200k) y correr sus semillas; confirmación de 10 y 5 semillas. \\
 9 nov & ``olvide mi cargador y estoy cargando la computadora con un cargador de solo 65 watts, [\ldots] crees que podamos correr esto con la extension de colab de vscode?'' & Pausa de los procesos, comparación con Colab y, después, un guardia de batería que pausaba el entrenamiento si la carga bajaba. \\
@@ -345,7 +376,8 @@ Fecha & Prompt & Resultado \\
 \subsubsection{Evolución de la idea}
 
 \begin{enumerate}
-  \item \textbf{Propuesta inicial (19 de octubre).} La especificación nace con la pregunta de investigación, los cuatro algoritmos, una línea base ``PID o LQR'', afinamiento con Optuna y niveles de dificultad. Varios valores están marcados como propuesta o decisión abierta.
+  \item \textbf{Elección del tema (desde el 15 de octubre).} Partimos de una lluvia de ideas para un equipo de cinco basada en Deep Q-Learning. Al quedar en dos, escogimos un tema propio: comparar algoritmos de control continuo en un robot de auto-balanceo. La discusión de riesgos con Claude convirtió una comparación simple en un estudio con niveles de dificultad, un PID de referencia, el mismo presupuesto de afinamiento y diagnósticos internos. Descartamos el robot físico.
+  \item \textbf{Especificación y documentación (19 de octubre al 1 de noviembre).} La especificación nace con la pregunta de investigación, los cuatro algoritmos, una línea base ``PID o LQR'', afinamiento con Optuna y niveles de dificultad, con varios valores marcados como propuesta o decisión abierta. Junto con ella se escriben \code{AGENTS.md} y el plan de la fase 1.
   \item \textbf{Fase 1, entorno (1--2 de noviembre).} Se construyen el MJCF, el entorno del nivel 0 y el PID. Las pruebas del modelo fijan la fricción, el amortiguamiento, el integrador y los límites de los sensores, que se anotan en la especificación. Se elige el PID en cascada como línea base porque balancea 20 de 20 episodios en el nivel 0. Aparece el problema de la fase no mínima: el lazo de velocidad tiene que ser lento.
   \item \textbf{Fase 2, pipeline (2 de noviembre).} Se escriben \code{train.py} y los niveles 1--3, y una prueba de humo confirma que los cuatro algoritmos aprenden con el mismo código. Con esto se entrega el avance.
   \item \textbf{Fase 3, afinamiento y diagnósticos (5--7 de noviembre, Mario).} Configuraciones de DDPG y PPO, \code{tune.py} con Optuna, diagnósticos de sobreestimación de $Q$ y suavidad, y las herramientas de \code{lab/} para afinar y correr semillas en otras computadoras y en Colab, porque el cómputo de una sola laptop no alcanzaba.
@@ -593,6 +625,8 @@ Todo el código, las configuraciones, los resultados de las corridas finales y e
 \bibitem{astrom2008} K.~J.~Åström y R.~M.~Murray. \emph{Feedback Systems: An Introduction for Scientists and Engineers}. Princeton University Press, 2008.
 
 \bibitem{bergstra2011} J.~Bergstra, R.~Bardenet, Y.~Bengio y B.~Kégl. Algorithms for hyper-parameter optimization. En \emph{Advances in Neural Information Processing Systems (NeurIPS)}, 2011.
+
+\bibitem{claude} Anthropic. Claude. \url{https://claude.ai}. Consultado en octubre y noviembre de 2026.
 
 \bibitem{claudecode} Anthropic. Claude Code. \url{https://www.anthropic.com/claude-code}. Consultado en noviembre de 2026.
 
