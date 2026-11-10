@@ -7,11 +7,11 @@ El texto es una guía para decirlo con sus palabras, no para leerlo palabra por 
 
 ## Antes de grabar
 
-- Presentación en modo *Present*: los videos de las diapositivas 8, 10 y 11 se reproducen solos.
+- Presentación en modo *Present*: los videos de las diapositivas 6 y 7 se reproducen solos. La presentación tiene 10 diapositivas.
 - Videos a mano, para grabarlos en pantalla completa:
   - `results/videos/caida_libre.mp4`;
   - `results/videos/pid_balanceo.mp4`;
-  - `results/videos_finales/mosaico_nivel3.mp4`.
+  - `results/videos_finales/mosaico_nivel2.mp4` (ya no está en la presentación).
 - Una terminal en la raíz del repo con el entorno activado (`source .venv/bin/activate`).
 - El editor abierto en:
   - `assets/balance_bot.xml`;
@@ -24,15 +24,15 @@ El texto es una guía para decirlo con sus palabras, no para leerlo palabra por 
 |---|---|---|---|
 | 1 | 0:00–0:30 | C | Diapositiva 1 |
 | 2 | 0:30–1:10 | C | `caida_libre.mp4` y diapositiva 2 |
-| 3 | 1:10–1:40 | M | Diapositiva 3 |
-| 4 | 1:40–2:50 | C | Editor y `pid_balanceo.mp4`; diapositivas 4 y 5 |
-| 5 | 2:50–3:50 | M | Diapositiva 6, editor y terminal |
-| 6 | 3:50–4:30 | M | Diapositiva 7 |
-| 7 | 4:30–5:40 | C | Diapositivas 8, 9 y 10 |
-| 8 | 5:40–6:10 | C | Diapositiva 11 |
-| 9 | 6:10–7:00 | M | Diapositivas 12 y 13 |
-| 10 | 7:00–7:30 | M | Diapositiva 14 |
-| 11 | 7:30–8:00 | C | Diapositivas 15 y 17 |
+| 3 | 1:10–1:40 | M | Diapositiva 2 (hipótesis) |
+| 4 | 1:40–2:50 | C | Editor y `pid_balanceo.mp4`; diapositiva 3 |
+| 5 | 2:50–3:50 | M | Diapositiva 4, editor y terminal |
+| 6 | 3:50–4:30 | M | Diapositiva 5, gráfica izquierda |
+| 7 | 4:30–5:40 | C | `mosaico_nivel2.mp4` y diapositiva 6 |
+| 8 | 5:40–6:10 | C | Diapositiva 7 |
+| 9 | 6:10–7:00 | M | Diapositiva 8 y gráfica derecha de la 5 |
+| 10 | 7:00–7:30 | M | Diapositiva 9, arriba |
+| 11 | 7:30–8:00 | C | Diapositiva 9, abajo, y la 10 |
 
 ### 1. Presentación (C, 0:00–0:30)
 
@@ -54,7 +54,7 @@ El texto es una guía para decirlo con sus palabras, no para leerlo palabra por 
 
 ### 3. Hipótesis (M, 1:10–1:40)
 
-*Pantalla: diapositiva 3.*
+*Pantalla: diapositiva 2, la lista de hipótesis.*
 
 > Antes de los experimentos finales escribimos cuatro hipótesis. Que TD3 sobreestima menos el valor Q que DDPG y
 > por eso es más estable. Que SAC se recupera mejor de empujones por su exploración con entropía. Que PPO
@@ -67,7 +67,7 @@ El texto es una guía para decirlo con sus palabras, no para leerlo palabra por 
 1. `assets/balance_bot.xml`, en la parte de los sensores.
 2. `configs/env/level_3.yaml`.
 3. `pid_balanceo.mp4`.
-4. Las diapositivas 4 y 5.
+4. La diapositiva 3.
 
 > El robot lo modelamos en MuJoCo, un motor de física para robótica. Aquí está el modelo: un chasis de un kilo
 > sobre dos ruedas, con motores de torque limitado. Y estos son los sensores: la orientación y el giroscopio de
@@ -83,7 +83,7 @@ El texto es una guía para decirlo con sus palabras, no para leerlo palabra por 
 ### 5. Implementación: entrenamiento y afinamiento (M, 2:50–3:50)
 
 *Pantalla:*
-1. Diapositiva 6.
+1. Diapositiva 4.
 2. `configs/algos/td3.yaml`.
 3. En la terminal: `pytest -q` y, mientras corre, un entrenamiento corto (ver el comando abajo). Muestren unos segundos de cada uno.
 
@@ -101,7 +101,7 @@ python -m training.train --algo td3 --env-config configs/env/level_2.yaml --seed
 
 ### 6. Resultados: aprendizaje (M, 3:50–4:30)
 
-*Pantalla: diapositiva 7.*
+*Pantalla: diapositiva 5, la gráfica de la izquierda.*
 
 > Estas son las curvas de aprendizaje. TD3, en naranja, llega al mejor retorno: 891 de 1000. SAC, en verde,
 > aprende con menos muestras y es el más consistente entre semillas. DDPG, en azul, es el más lento e inestable.
@@ -109,7 +109,7 @@ python -m training.train --algo td3 --env-config configs/env/level_2.yaml --seed
 
 ### 7. Funcionamiento y generalización (C, 4:30–5:40)
 
-*Pantalla: diapositiva 8 (video), luego 9 y luego 10 (video).*
+*Pantalla: `mosaico_nivel2.mp4` en pantalla completa y luego la diapositiva 6 (tabla y video del nivel 3).*
 
 > Aquí están los cinco controladores en el nivel de entrenamiento, con la misma semilla. De cada algoritmo
 > mostramos la corrida mediana, no la mejor. Los cinco completan el episodio siguiendo los comandos.
@@ -122,7 +122,7 @@ python -m training.train --algo td3 --env-config configs/env/level_2.yaml --seed
 
 ### 8. Prueba de empujón (C, 5:40–6:10)
 
-*Pantalla: diapositiva 11.*
+*Pantalla: diapositiva 7.*
 
 > También medimos cuánta fuerza aguanta cada uno con un empujón aislado. El PID tolera la mayor fuerza, 17
 > newtons, pero tarda más de tres segundos en recuperarse. Los agentes se recuperan en alrededor de un segundo,
@@ -130,7 +130,7 @@ python -m training.train --algo td3 --env-config configs/env/level_2.yaml --seed
 
 ### 9. Aleatorización y diagnóstico de Q (M, 6:10–7:00)
 
-*Pantalla: diapositivas 12 y 13.*
+*Pantalla: diapositiva 8 y luego vuelvan a la 5, a la gráfica de la derecha.*
 
 > Después entrenamos directamente en el nivel 3, con aleatorización de dominio. DDPG, TD3 y SAC mejoran mucho en
 > ese nivel; DDPG pasa de 283 a 654. A cambio aprenden una política más conservadora. PPO, en cambio, no se
@@ -142,7 +142,7 @@ python -m training.train --algo td3 --env-config configs/env/level_2.yaml --seed
 
 ### 10. Contraste de hipótesis (M, 7:00–7:30)
 
-*Pantalla: diapositiva 14.*
+*Pantalla: diapositiva 9, la parte de las hipótesis.*
 
 > Volviendo a las hipótesis: H1 se confirma. H2 se rechaza: SAC no se recupera mejor que TD3. H3 se cumple solo
 > en parte, porque PPO no varía menos entre semillas. Y H4 se confirma con matices: el PID sigue siendo mejor
@@ -150,7 +150,7 @@ python -m training.train --algo td3 --env-config configs/env/level_2.yaml --seed
 
 ### 11. Conclusión (C, 7:30–8:00)
 
-*Pantalla: diapositiva 15 y luego la 17.*
+*Pantalla: diapositiva 9, la parte de abajo, y luego la 10.*
 
 > En conclusión, TD3 es el mejor algoritmo en las condiciones en que se entrena; SAC es la alternativa más
 > confiable; y si el robot va a enfrentar ruido y latencia sin haberse entrenado para eso, PPO es la mejor
